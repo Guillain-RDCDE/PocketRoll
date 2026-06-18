@@ -1,0 +1,11 @@
+# PocketRoll: real saves (personal) + sim/build artifacts
+pocketroll/samples/
+*.sav
+*.srm
+*.sta
+*.vvp
+*.wlf
+transcript
+work/
+node_modules/
+*.tmp.*

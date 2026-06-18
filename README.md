@@ -1,29 +1,67 @@
-# Gameboy/Game Boy Color for Analogue Pocket
-Ported from the original core developed at https://github.com/MiSTer-devel/Gameboy_MiSTer
+# PocketRoll 🎞️📸
 
-Please report any issues encountered to this repo. Issues will be upstreamed as necessary.
+> Give the **Game Boy Camera** an **infinite roll of film** on the **Analogue Pocket** — the custom
+> openFPGA core **and** the full making-of, for curious beginners and hardcore byte-wranglers alike.
 
-## Installation
-To install the core, copy the `Assets`, `Cores`, and `Platform` folders over to the root of your SD card. Please note that Finder on macOS automatically _replaces_ folders, rather than merging them like Windows does, so you have to manually merge the folders.
+> ⚙️ **This repository is a fork of [budude2/openfpga-GBC](https://github.com/budude2/openfpga-GBC)**
+> (the openFPGA Game Boy core), extended into PocketRoll. All of budude2's original work lives in
+> [`src/`](src/) and [`pkg/`](pkg/); our additions and research live in [`pocketroll/`](pocketroll/).
+> Upstream README preserved as [`README.budude2.md`](README.budude2.md).
 
-Place the GBC bios in `/Assets/gbc/common` named "gbc_bios.bin", the GB bios in `/Assets/gb/common` named "gb_bios.bin", and the SGB bios in `/Assets/gb/common` named "sgb_boot.bin".
+---
 
+## What's the deal?
 
-## Usage
-ROMs should be placed in `/Assets/gbc/common`, and `/Assets/gb/common`
+The Game Boy Camera (1998, the most gloriously terrible camera in history) only stores **30 photos**.
+PocketRoll lifts that limit on the Analogue Pocket: every photo you take with the **real cartridge**
+(its real sensor, via the core's physical-cartridge passthrough) gets **archived to the SD card** and
+its slot **freed**, so the camera always thinks it has room. Result: **infinite photos**, readable in
+[MugDump](https://github.com/Guillain-RDCDE/MugDump).
 
-## Features
+And since we're not alone on the Moon, **we document everything** — including the stuff written
+*nowhere else on the web*.
 
-### Supported
-* Real-Time Clock
-* Fastforward
-* Original Gameboy display modes
-* Super Gameboy Emulation
-* Custom Borders (SGB)
-* Custom Palettes (SGB)
-* Enhance GBA features
-* Save States and Sleep
-* External Cartridges
+## 🗺️ Where things live
 
-### In Progress
-¯\\_(ツ)_/¯
+| Folder | What |
+|---|---|
+| [`src/`](src/) · [`pkg/`](pkg/) | the openFPGA Game Boy core (budude2's, the base we build on) |
+| [`pocketroll/core/`](pocketroll/core/) | our Verilog scaffold (recycle · export · manager) + build helpers + testbench |
+| [`pocketroll/docs/`](pocketroll/docs/) | all the research, written twice over (noob track + geek track) |
+| [`pocketroll/tools/`](pocketroll/tools/) | zero-dependency Node tools (read/verify/forge saves, RE checksums) |
+
+## 🧠 The research, in one breath
+
+Verified **on real hardware**:
+
+- 🔧 **The Game Boy Camera checksum, fixed** — not a "Magic" seed: **sum seed `0x2F`, xor seed `0x15`**
+  over `0x11B2..0x11CF`. → [docs/01](pocketroll/docs/01-game-boy-camera-sram-format.md)
+- 🧪 **"Free a slot" recipe** reproduces the camera's own deletion to within 6 bytes (animation noise).
+  → [docs/02](pocketroll/docs/02-slot-recycling.md)
+- 🗃️ **The Analogue Pocket `.sta` save state format, decoded** — undocumented anywhere else.
+  → [docs/03](pocketroll/docs/03-game-boy-camera-saves-explained.md#b-the-analogue-pocket-sta-save-state)
+- 🎥 **Sensor passthrough works** — confirmed on hardware: the real cartridge (sensor included) runs live
+  in physical-cartridge mode. → [docs/04](pocketroll/docs/04-openfpga-core-architecture.md)
+- 🛠️ **Automation design** (SD export + recycling) + Verilog scaffold.
+  → [docs/05](pocketroll/docs/05-export-recycling-design.md) · [`pocketroll/core/`](pocketroll/core/)
+
+## 🗺️ Status
+
+Phase 1 (the infinite roll): research ✅ · scaffold ✅ · recycle logic validated ✅ · sensor confirmed on
+Pocket ✅ · **building the custom core** (in progress). Phase 2: a stripped-down "camera-only" ROM.
+
+Build/flash notes: [`pocketroll/core/SETUP.md`](pocketroll/core/SETUP.md) ·
+integration map: [`pocketroll/core/INTEGRATION.md`](pocketroll/core/INTEGRATION.md).
+
+> ⚠️ **Build with Quartus Prime Lite 18.1** (the version this core was made with). Newer versions
+> compile cleanly but produce a black screen on the Pocket (openFPGA version sensitivity).
+
+## 🙏 Credits
+
+Core: [budude2/openfpga-GBC](https://github.com/budude2/openfpga-GBC) (this fork's base). Camera-format
+RE: [Raphaël Boichot](https://github.com/Raphael-Boichot/Inject-pictures-in-your-Game-Boy-Camera-saves),
+insideGadgets, [Pan Docs](https://gbdev.io/pandocs/Gameboy_Camera.html). `.sta` extraction:
+[Galkon/pokepocket-save-recovery](https://github.com/Galkon/pokepocket-save-recovery).
+
+*All findings verified by hand on real saves. Spotting a difference on another ROM revision? Open an
+issue — turns out we're not alone on the Moon.* 🌙
