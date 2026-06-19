@@ -424,7 +424,7 @@ assign ram_mask_file =              // 0 - no ram
 assign has_save = mbc_battery && (cart_ram_size > 0 || mbc2 || mbc7 || tama);
 
 // Up to 8kb * 16banks of Cart Ram (128kb)
-dpram #(16) cram_l (
+dpram #(.addr_width(16), .mem_init_file("cram_l.mif")) cram_l ( // PocketRoll: preload photo RAM (low bytes)
 	.clock_a (clk_sys),
 	.address_a (cram_addr[16:1]),
 	.wren_a (cram_wr & ~cram_addr[0]),
@@ -438,7 +438,7 @@ dpram #(16) cram_l (
 	.q_b (bk_q[7:0])
 );
 
-dpram #(16) cram_h (
+dpram #(.addr_width(16), .mem_init_file("cram_h.mif")) cram_h ( // PocketRoll: preload photo RAM (high bytes)
 	.clock_a (clk_sys),
 	.address_a (cram_addr[16:1]),
 	.wren_a (cram_wr & cram_addr[0]),
