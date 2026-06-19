@@ -894,7 +894,7 @@ cart_top cart
   .ioctl_addr                 ( ioctl_addr              ),
   .ioctl_dout                 ( ioctl_dout              ),
 
-  .bk_wr                      ( bk_wr                   ),
+  .bk_wr                      ( bk_wr & ~cart_physical_mode ), // PocketRoll: don't let the save-load clobber our .mif-preloaded cart RAM in physical mode
   .bk_rtc_wr                  ( bk_rtc_wr               ),
   .bk_addr                    ( bk_addr                 ),
   .bk_data                    ( bk_data                 ),
