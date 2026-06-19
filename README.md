@@ -53,8 +53,10 @@ Pocket ✅ · **building the custom core** (in progress). Phase 2: a stripped-do
 Build/flash notes: [`pocketroll/core/SETUP.md`](pocketroll/core/SETUP.md) ·
 integration map: [`pocketroll/core/INTEGRATION.md`](pocketroll/core/INTEGRATION.md).
 
-> ⚠️ **Build with Quartus Prime Lite 18.1** (the version this core was made with). Newer versions
-> compile cleanly but produce a black screen on the Pocket (openFPGA version sensitivity).
+> ⚠️ **Build with Quartus Prime Lite 25.1** — the version whose IP (PLLs etc.) this core's source is
+> generated for. Other versions (18.1, 24.1) compile cleanly but produce a **black screen** on the
+> Pocket. Also: this fork builds the **GB** core, so `core_top.sv` must have `` `define isgbc 0 ``
+> (upstream HEAD leaves it at `1`, which builds the GBC variant → wrong BIOS → black screen).
 
 ## 🙏 Credits
 

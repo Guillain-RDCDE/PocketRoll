@@ -1,6 +1,6 @@
 `default_nettype none
 
-`define isgbc 1
+`define isgbc 0
 
 module core_top (
 

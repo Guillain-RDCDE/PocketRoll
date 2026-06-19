@@ -3,17 +3,21 @@
 Everything needed to go from "scaffold in the repo" to "custom core running on the Pocket". Do this
 once; after that the loop is edit → build → package → flash.
 
-> The exact Quartus version matters for openFPGA. **Check the fork's requirement first** (budude2's
-> README / the openFPGA core template) and install that version — mixing versions causes grief.
+> ⚠️ **The exact Quartus version matters — a lot.** This core's committed IP (PLLs, RAM, DDIO) is
+> generated for **Quartus Prime Lite 25.1** (budude2's `7044e75` "upgrade to quartus 25.1"). Building
+> with 18.1 or 24.1 compiles cleanly (timing met, no errors) but yields a **black screen** on the
+> Pocket — the PLL clocks come out subtly wrong. Use **25.1** and this whole headache disappears.
+>
+> ⚠️ **Build the GB core, not GBC.** `src/core/core_top.sv` must read `` `define isgbc 0 `` for the
+> Game Boy (DMG) core. Upstream HEAD leaves it at `1` (the GBC build) — that bitstream wants
+> `gbc_bios.bin`, so packaged as a GB core (with `gb_bios.bin`) it never boots → black screen.
 
 ## 1. Tools to install
 
-- **Intel Quartus Prime Lite** (free), **18.1 or newer** with **Cyclone V** device support enabled
-  during install (the Pocket's FPGA is a Cyclone V E). Download from Intel's FPGA software page —
-  it's free but the portal asks for a (free) Intel account. Big: ~20–30 GB installed; grab the
-  combined installer + the Cyclone V device pack. Silent install is supported
-  (`QuartusLiteSetup-XX.exe --mode unattended --installdir <dir>`), handy on a machine without admin
-  (install into your user profile).
+- **Intel Quartus Prime Lite 25.1** (free) with **Cyclone V** device support enabled during install
+  (the Pocket's FPGA is a Cyclone V E). Direct files (download via browser into one folder, run the
+  `.exe`): `QuartusLiteSetup-25.1std.0.1129-windows.exe` + `cyclonev-25.1std.0.1129.qdz` from
+  `downloads.intel.com/akdlm/software/acdsinst/25.1std/1129/ib_installers/`. ~20 GB installed.
 - **Git** (you have it) and a GitHub account (you have `Guillain-RDCDE`).
 - An **SD card** for the Pocket and a card reader (you've got this — `E:`).
 - **Icarus Verilog** to sim `pocketroll_recycle.v` *before* touching hardware (recommended — saves
