@@ -44,6 +44,9 @@ Verified **on real hardware**:
   in physical-cartridge mode. → [docs/04](pocketroll/docs/04-openfpga-core-architecture.md)
 - 🛠️ **Automation design** (SD export + recycling) + Verilog scaffold.
   → [docs/05](pocketroll/docs/05-export-recycling-design.md) · [`pocketroll/core/`](pocketroll/core/)
+- 🪵 **The build & debug war story** — every wrong turn flashing this to real hardware (black screens,
+  the white-screen hunt) and the trick that saved us: the Pocket's hidden debug log, **no JTAG needed**.
+  → [docs/06](pocketroll/docs/06-build-and-debug-war-story.md)
 
 ## 🗺️ Status
 
