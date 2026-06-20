@@ -717,23 +717,9 @@ end
 
 reg isGBC = `isgbc;
 
-// PocketRoll (Step A): keep the emulated mapper + its internal 128 KB cart RAM live in physical
-// mode too, so cart-RAM accesses are captured into / served from our internal store. ROM and the
-// camera sensor still come from the physical cartridge (see the cart_do mux below).
-wire backend_cart_rd = cart_rd;
-wire backend_cart_wr = cart_wr;
+wire backend_cart_rd = ~cart_physical_mode & cart_rd;
+wire backend_cart_wr = ~cart_physical_mode & cart_wr;
 wire cart_access = cart_physical_mode & (cart_rd | cart_wr);
-
-// PocketRoll (Step A): snoop the GB Camera mapper's cam_en bit (write to 0x4000-0x5FFF, bit 4),
-// exactly as gb_camera.v does. cam_en=1 => 0xA000-0xBFFF is the SENSOR (must stay physical);
-// cam_en=0 => it's the photo RAM (serve from our internal store).
-reg pr_cam_en;
-always @(posedge clk_sys) begin
-   if (reset)
-      pr_cam_en <= 1'b0;
-   else if (ce_cpu && cart_wr && ~cart_a15 && cart_addr[14:13] == 2'b10)
-      pr_cam_en <= cart_di[4];
-end
 wire cart_read_access = cart_access & ~cart_wr;
 wire cart_write_access = cart_access & cart_wr;
 wire [5:0] cart_phi_period_m1 = speed ? 6'd15 : 6'd31;
@@ -790,11 +776,7 @@ wire rumbling;
 wire RTC_inuse;
 
 assign cart_wait_n = 1'b1;
-// PocketRoll (Step A): in physical mode, photo-RAM reads come from our internal store
-// (cart_do_backend); ROM and the camera sensor still come from the physical cartridge.
-assign cart_do = (cart_physical_mode & cram_rd & ~pr_cam_en) ? cart_do_backend  // internal cart RAM (photos)
-               :  cart_physical_mode                          ? cart_tran_bank1  // ROM + sensor
-               :                                                cart_do_backend; // emulated
+assign cart_do = cart_physical_mode ? cart_tran_bank1 : cart_do_backend;
 assign cart_oe = cart_physical_mode ? cart_read_access : cart_oe_backend;
 
 assign cart_tran_bank3     = cart_access ? cart_addr[7:0] : {6'hzz, rumble_cart_rumble, 1'bz};
@@ -894,7 +876,7 @@ cart_top cart
   .ioctl_addr                 ( ioctl_addr              ),
   .ioctl_dout                 ( ioctl_dout              ),
 
-  .bk_wr                      ( bk_wr & ~cart_physical_mode ), // PocketRoll: don't let the save-load clobber our .mif-preloaded cart RAM in physical mode
+  .bk_wr                      ( bk_wr                   ),
   .bk_rtc_wr                  ( bk_rtc_wr               ),
   .bk_addr                    ( bk_addr                 ),
   .bk_data                    ( bk_data                 ),

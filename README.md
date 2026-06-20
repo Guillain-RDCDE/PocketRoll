@@ -47,6 +47,9 @@ Verified **on real hardware**:
 - 🪵 **The build & debug war story** — every wrong turn flashing this to real hardware (black screens,
   the white-screen hunt) and the trick that saved us: the Pocket's hidden debug log, **no JTAG needed**.
   → [docs/06](pocketroll/docs/06-build-and-debug-war-story.md)
+- 📤 **The dump saga** — exporting photos to SD: `target_dataslot_write` works, but the home-made RAM
+  mirror was a trap (garbage + freezes). Why the dump must **read the physical cartridge directly**.
+  → [docs/07](pocketroll/docs/07-the-dump-saga.md)
 
 ## 🗺️ Status
 
