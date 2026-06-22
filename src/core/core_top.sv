@@ -256,12 +256,7 @@ assign cram1_we_n  = 1;
 assign cram1_ub_n  = 1;
 assign cram1_lb_n  = 1;
 
-assign sram_a      = 'h0;
-assign sram_dq     = {16{1'bZ}};
-assign sram_oe_n   = 1;
-assign sram_we_n   = 1;
-assign sram_ub_n   = 1;
-assign sram_lb_n   = 1;
+// PocketRoll: the external SRAM is our 128 KB dump buffer — driven by the snoop controller below.
 
 assign dbg_tx      = 1'bZ;
 assign user1       = 1'bZ;
@@ -515,8 +510,8 @@ always_ff @(posedge clk_74a) begin
       if (pr_r1_s[1]) begin
         target_dataslot_id         <= 16'd48;          // data.json "PocketRoll" dump slot
         target_dataslot_slotoffset <= 32'd0;
-        target_dataslot_bridgeaddr <= 32'h3000_0000;   // snooped dump_buf window
-        target_dataslot_length     <= 32'h0000_2000;   // 8 KB (bank-0 test)
+        target_dataslot_bridgeaddr <= 32'h3000_0000;   // snooped SRAM window
+        target_dataslot_length     <= 32'h0002_0000;   // 128 KB (full dump)
         target_dataslot_write      <= 1'b1;
         pr_dump_st <= 3'd1;
       end
@@ -635,23 +630,38 @@ save_handler save_handler
 );
 
 // ============================================================================
-// PocketRoll — DUMP via SNOOP: watch what the gb reads from the cartridge SRAM (its own proven
-// timing) and capture it into dump_buf; R1 then writes dump_buf to SD. Bank-0 test = snoop bank 0.
+// PocketRoll — DUMP via SNOOP into the Pocket's external SRAM (128 KB): capture every byte the gb
+// reads from cart RAM (its proven timing), ALL 16 banks, into the SRAM; the save reads it to SD.
+// SRAM defaults to READ (for the data_unloader); a snoop event switches it to a brief WRITE.
 // ============================================================================
-
-// dump buffer: bank 0 = 8192 × 8-bit = 8 KB (the gb reads one byte per cram access)
-logic [7:0]  dump_buf [0:8191];
-logic [12:0] dbuf_raddr;
-logic [7:0]  dbuf_rdata;
-always_ff @(posedge clk_sys) begin
-  // SNOOP: when the gb reads cram (data valid on the bus at its read), capture the byte.
-  if (cart_physical_mode & ce_cpu & cram_rd & cart_oe & (pr_cram_addr[16:13] == 4'd0))
-    dump_buf[pr_cram_addr[12:0]] <= cart_tran_bank1;
-  dbuf_rdata <= dump_buf[dbuf_raddr];
-end
-
-// expose dump_buf to the bridge at 0x3xxxxxxx via a data_unloader (1-byte words)
+logic [16:0] snoop_addr;
+logic [7:0]  snoop_data;
+logic        snoop_req;
+logic [2:0]  wcnt;
+logic [7:0]  sram_rd_byte;
 logic [17:0] dump_unloader_addr;
+always_ff @(posedge clk_sys) begin
+  // SNOOP: when the gb reads cram (byte valid on the bus), latch it for an SRAM write
+  if (cart_physical_mode & ce_cpu & cram_rd & cart_oe & ~snoop_req) begin
+    snoop_addr <= pr_cram_addr;            // full 17-bit cram byte address (any bank)
+    snoop_data <= cart_tran_bank1;
+    snoop_req  <= 1'b1;
+  end
+  if (snoop_req) begin                     // 6-cycle write (generous for the async SRAM)
+    if (wcnt == 3'd5) begin snoop_req <= 1'b0; wcnt <= 3'd0; end
+    else wcnt <= wcnt + 3'd1;
+  end else wcnt <= 3'd0;
+  sram_rd_byte <= dump_unloader_addr[0] ? sram_dq[15:8] : sram_dq[7:0]; // latch the read byte
+end
+wire sram_byte = snoop_req ? snoop_addr[0] : dump_unloader_addr[0];
+assign sram_a    = snoop_req ? {1'b0, snoop_addr[16:1]} : {1'b0, dump_unloader_addr[16:1]};
+assign sram_oe_n = snoop_req;                                    // read by default; off during write
+assign sram_we_n = ~(snoop_req & (wcnt >= 3'd1) & (wcnt <= 3'd4)); // we# low cycles 1..4
+assign sram_ub_n = ~sram_byte;                                  // high byte when addr[0]=1
+assign sram_lb_n =  sram_byte;                                  // low  byte when addr[0]=0
+assign sram_dq   = snoop_req ? {snoop_data, snoop_data} : 16'hZZZZ;
+
+// expose the SRAM to the bridge at 0x3xxxxxxx via a data_unloader (1-byte words)
 logic [31:0] dump_rd_data;
 data_unloader #(
   .ADDRESS_MASK_UPPER_4 (4'h3),
@@ -667,9 +677,8 @@ data_unloader #(
   .bridge_rd_data       (dump_rd_data),
   .read_en              (),
   .read_addr            (dump_unloader_addr),
-  .read_data            (dbuf_rdata)
+  .read_data            (sram_rd_byte)
 );
-assign dbuf_raddr = dump_unloader_addr[12:0];
 
   logic ss_save, ss_load;
   logic [63:0] SaveStateExt_Din, SaveStateExt_Dout;

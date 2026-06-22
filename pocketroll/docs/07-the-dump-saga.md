@@ -165,6 +165,33 @@ certainly reading/writing the wrong location. And on Pocket specifically: a `non
 will quietly write itself back from its `address` on exit; make sure that's the buffer you think it
 is.
 
+## 🏁 The finish line — a full, valid save, by snooping
+
+Bank 0 (the directory) proved the snoop. The photos live in banks 1–15 — 128 KB total — and a 128 KB
+buffer **doesn't fit in block RAM** (the M10K blocks are nearly all spoken for, ~100 of them by the
+core's own cart RAM). The way out: the Pocket has an **unused 128 KB external SRAM** (`sram_*`, you'll
+see its pins "stuck at GND" in the fitter report). Use *that* as the snoop buffer — a tiny async
+controller, write-on-snoop, read-on-dump, no block RAM at all.
+
+Wire it up, browse the gallery so the camera reads every photo, exit (the native save now reads our
+buffer), and:
+
+```
+$ node tools/gbcam-sav.js info pocketroll.sav
+Active photos : 15 / 30
+Stored  checksum : sum=0x89 xor=0xE5
+Computed checksum: sum=0x89 xor=0xE5
+Checksum OK   : YES ✅
+```
+
+A **byte-valid Game Boy Camera save**, checksum-perfect, straight off the Pocket — and
+[MugDump](../../MugDump) turns it into PNGs of your actual photos. **No PC in the field. The dream,
+done — by *watching* the camera instead of fighting it.**
+
+One honest caveat: the snoop only captures **what the camera reads**, so a photo you merely scroll
+past in the grid (thumbnail only) comes out noisy — **open each photo full-screen** before exiting for
+a complete 15/15. (A self-driving "read every bank" pass is future work.)
+
 ## 🧰 Cheat sheet — writing files to SD from a core
 
 - **`target_dataslot_write` (cmd `0x0184`) works** and is the way to write a file on demand. Drive the
