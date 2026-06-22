@@ -6,6 +6,7 @@ module cart_top (
 	input         ce_cpu2x,
 	input         speed,
 	input         megaduck,
+	input         cart_physical_mode, // PocketRoll: force the camera mapper (banking) for the write-mirror
 	input   [2:0] mapper_sel,
 
 	input  [14:0] cart_addr,
@@ -25,6 +26,7 @@ module cart_top (
 
 	output        cram_rd,
 	output        cram_wr,
+	output [16:0] pr_cram_addr, // PocketRoll: expose the gb's cram read address (with bank) for the snoop
 
 	input         cart_download,
 
@@ -233,7 +235,7 @@ wire mbc6 = (cart_mbc_type == 32);
 wire mbc7 = (cart_mbc_type == 34);
 wire rocket = (cart_mbc_type == 151) || (cart_mbc_type == 153);
 wire megaduck_en = (cart_mbc_type == 250); // Use a wire to ensure enable is load while loading
-wire gb_camera = (cart_mbc_type == 252);
+wire gb_camera = (cart_mbc_type == 252) || cart_physical_mode; // PocketRoll: no ROM header in physical mode → force camera banking for the mirror
 wire tama = (cart_mbc_type == 253);
 
 wire HuC3 = (cart_mbc_type == 254);
@@ -410,6 +412,7 @@ assign cram_rd = cart_rd & is_cram_addr;
 assign cram_wr = sleep_savestate ? Savestate_CRAMRWrEn : mbc_cram_wr || (cart_wr & is_cram_addr & mbc_ram_enable);
 
 wire [16:0] cram_addr = sleep_savestate ? Savestate_CRAMAddr[16:0] : mbc_cram_addr;
+assign pr_cram_addr = cram_addr; // PocketRoll snoop
 wire [7:0]    cram_di = sleep_savestate ? Savestate_CRAMWriteData : mbc_cram_wr ? mbc_cram_wr_do : cart_di;
 
 // RAM size

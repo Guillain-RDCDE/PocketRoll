@@ -1,0 +1,34 @@
+{
+  "core": {
+    "magic": "APF_VER_1",
+    "metadata": {
+      "platform_ids": ["gb"],
+      "shortname": "GBCAM",
+      "description": "PocketRoll baseline (GB)",
+      "author": "Guillain-RDCDE",
+      "url": "https://github.com/Guillain-RDCDE/PocketRoll",
+      "version": "0.1.0",
+      "date_release": "2026-06-18"
+    },
+    "framework": {
+      "target_product": "Analogue Pocket",
+      "version_required": "1.1",
+      "sleep_supported": true,
+      "dock": {
+        "supported": true,
+        "analog_output": false
+      },
+      "hardware": {
+        "link_port": true,
+        "cartridge_adapter": "0x01000000"
+      }
+    },
+    "cores": [
+      {
+        "name": "default",
+        "id": 0,
+        "filename": "gb.rbf_r"
+      }
+    ]
+  }
+}

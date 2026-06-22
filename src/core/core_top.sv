@@ -464,6 +464,7 @@ end
 always_comb begin
   casex(bridge_addr)
     32'h2xxxxxxx: begin bridge_rd_data = save_rd_data;                end
+    32'h3xxxxxxx: begin bridge_rd_data = dump_rd_data;                end // PocketRoll dump_buf window
     32'h4xxxxxxx: begin bridge_rd_data = save_state_bridge_read_data; end
     32'hF8xxxxxx: begin bridge_rd_data = cmd_bridge_rd_data;          end
     32'hF1000000: begin bridge_rd_data = int_bridge_read_data;        end
@@ -493,6 +494,37 @@ always_ff @(posedge clk_74a) begin
       32'hF2000000: begin int_bridge_read_data  <= run_settings;   end //! Runtime settings
     endcase
   end
+end
+
+// ============================================================================
+// PocketRoll — DUMP trigger (clk_74a): on R1, write the snooped dump_buf (8 KB at 0x30000000) to SD.
+// R1 is free (the Game Boy never uses it). The snoop fills dump_buf continuously as the camera reads.
+// ============================================================================
+reg  [2:0] pr_dump_st = 3'd0;
+reg  [1:0] pr_r1_s    = 2'd0;
+always_ff @(posedge clk_74a) begin
+  pr_r1_s <= {pr_r1_s[0], cont1_key[9]};   // sync R1
+
+  target_dataslot_read     <= 1'b0;        // we only use 'write'
+  target_dataslot_getfile  <= 1'b0;
+  target_dataslot_openfile <= 1'b0;
+
+  case (pr_dump_st)
+    3'd0: begin                            // idle — wait for R1 press
+      target_dataslot_write <= 1'b0;
+      if (pr_r1_s[1]) begin
+        target_dataslot_id         <= 16'd48;          // data.json "PocketRoll" dump slot
+        target_dataslot_slotoffset <= 32'd0;
+        target_dataslot_bridgeaddr <= 32'h3000_0000;   // snooped dump_buf window
+        target_dataslot_length     <= 32'h0000_2000;   // 8 KB (bank-0 test)
+        target_dataslot_write      <= 1'b1;
+        pr_dump_st <= 3'd1;
+      end
+    end
+    3'd1: if (target_dataslot_ack)  begin target_dataslot_write <= 1'b0; pr_dump_st <= 3'd2; end
+    3'd2: if (target_dataslot_done) pr_dump_st <= 3'd3;
+    3'd3: if (~pr_r1_s[1])          pr_dump_st <= 3'd0;   // wait for release, then re-arm
+  endcase
 end
 
 logic clk_sys, clk_ram, clk_ram_90, clk_vid, clk_vid_90;
@@ -602,6 +634,43 @@ save_handler save_handler
   .loading_done         ( loading_done                    )
 );
 
+// ============================================================================
+// PocketRoll — DUMP via SNOOP: watch what the gb reads from the cartridge SRAM (its own proven
+// timing) and capture it into dump_buf; R1 then writes dump_buf to SD. Bank-0 test = snoop bank 0.
+// ============================================================================
+
+// dump buffer: bank 0 = 8192 × 8-bit = 8 KB (the gb reads one byte per cram access)
+logic [7:0]  dump_buf [0:8191];
+logic [12:0] dbuf_raddr;
+logic [7:0]  dbuf_rdata;
+always_ff @(posedge clk_sys) begin
+  // SNOOP: when the gb reads cram (data valid on the bus at its read), capture the byte.
+  if (cart_physical_mode & ce_cpu & cram_rd & cart_oe & (pr_cram_addr[16:13] == 4'd0))
+    dump_buf[pr_cram_addr[12:0]] <= cart_tran_bank1;
+  dbuf_rdata <= dump_buf[dbuf_raddr];
+end
+
+// expose dump_buf to the bridge at 0x3xxxxxxx via a data_unloader (1-byte words)
+logic [17:0] dump_unloader_addr;
+logic [31:0] dump_rd_data;
+data_unloader #(
+  .ADDRESS_MASK_UPPER_4 (4'h3),
+  .ADDRESS_SIZE         (18),
+  .READ_MEM_CLOCK_DELAY (15),
+  .INPUT_WORD_SIZE      (1)
+) dump_data_unloader (
+  .clk_74a              (clk_74a),
+  .clk_memory           (clk_sys),
+  .bridge_rd            (bridge_rd),
+  .bridge_endian_little (bridge_endian_little),
+  .bridge_addr          (bridge_addr),
+  .bridge_rd_data       (dump_rd_data),
+  .read_en              (),
+  .read_addr            (dump_unloader_addr),
+  .read_data            (dbuf_rdata)
+);
+assign dbuf_raddr = dump_unloader_addr[12:0];
+
   logic ss_save, ss_load;
   logic [63:0] SaveStateExt_Din, SaveStateExt_Dout;
   logic [9:0]  SaveStateExt_Adr;
@@ -684,6 +753,8 @@ logic [14:0] cart_addr;
 logic [22:0] mbc_addr;
 logic cart_a15, cart_rd, cart_wr, cart_oe, cart_wait_n, nCS;
 logic [7:0] cart_di, cart_do;
+logic [16:0] pr_cram_addr; // the gb's cram read address (with bank), from cart_top — for the snoop
+
 logic ioctl_wr, dn_write, cart_ready, cram_rd, cram_wr;
 logic [24:0] ioctl_addr;
 logic [15:0] ioctl_dout;
@@ -717,8 +788,10 @@ end
 
 reg isGBC = `isgbc;
 
-wire backend_cart_rd = ~cart_physical_mode & cart_rd;
-wire backend_cart_wr = ~cart_physical_mode & cart_wr;
+// PocketRoll (Dump): keep cart_top live in physical mode so the internal cart RAM MIRRORS the
+// camera's photo writes. Reads stay passthrough (cart_do mux below) → the physical sensor is untouched.
+wire backend_cart_rd = cart_rd;
+wire backend_cart_wr = cart_wr;
 wire cart_access = cart_physical_mode & (cart_rd | cart_wr);
 wire cart_read_access = cart_access & ~cart_wr;
 wire cart_write_access = cart_access & cart_wr;
@@ -843,6 +916,7 @@ cart_top cart
   .ce_cpu2x                   ( ce_cpu2x                ),
   .speed                      ( speed                   ),
   .megaduck                   ( 0                       ),
+  .cart_physical_mode         ( cart_physical_mode      ),
   .mapper_sel                 ( 0                       ),
 
   .cart_addr                  ( cart_addr               ),
@@ -862,6 +936,7 @@ cart_top cart
 
   .cram_rd                    ( cram_rd                 ),
   .cram_wr                    ( cram_wr                 ),
+  .pr_cram_addr               ( pr_cram_addr            ),
 
   .cart_download              ( cart_download           ),
 
@@ -973,10 +1048,9 @@ end
 gb gb
 (
   .reset                  ( reset | ~loading_done   ),
-  
   .clk_sys                ( clk_sys                 ),
-  .ce                     ( ce_cpu                  ),   // the whole gameboy runs on 4mhnz
-  .ce_2x                  ( ce_cpu2x                ),   // ~8MHz in dualspeed mode (GBC)
+  .ce                     ( ce_cpu                  ),
+  .ce_2x                  ( ce_cpu2x                ),
   
   .isGBC                  ( isGBC                   ),
   .real_cgb_boot          ( 1                       ),  

@@ -129,6 +129,42 @@ film. That's the next chapter.
 
 ---
 
+## 🔄 Plot twist: the bus-master was *also* a trap — and the one-line bug that fooled us for days
+
+Reading the cartridge directly (bus-master) sounded right. It wasn't — not by hand. The Game Boy
+cartridge bus is **paced by the CPU's read/write cycle**, with edge-triggered writes and the read
+latched at a precise instant (you can see it in the GB core: `cart_di` is valid only when
+`cart_sel & cart_oe`). Free-running our own PHI-based timing fought us through ~6 builds: garbage
+reads, the RAM-enable write not latching, and pausing/resetting the CPU mid-frame **crashing the
+camera** (a glitched Nintendo logo — the boot logo check failing).
+
+So we flipped it again — **stop driving the bus; snoop it.** The GB core already reads the SRAM
+perfectly (the camera runs!). So we just *watch*: when the core reads cart RAM (`cram_rd & cart_oe`),
+the byte is on the bus at the core's own proven timing — copy it into a buffer. No bus-mastering, no
+pause, no crash. As the camera shows the gallery, it reads the directory + thumbnails → we capture
+them.
+
+**But here's the part that cost us days.** Every dump — mirror, bus-master, snoop — came back as the
+*same* garbage. Different mechanisms, identical bad output. That's impossible… unless they were all
+**reading the same wrong place.** The debug log finally showed it:
+
+```
+Target: Write from BRIDGE 0x30000000 ... len 0x2000      ← our dump (our buffer) — fine!
+Slot:   Readback from slot ID [48]: 0x20000000 - 131072  ← a SECOND write, the native save
+```
+
+Our data-slot was `nonvolatile`, so on every exit/sleep Pocket ran a **native save** that read the
+slot's `address` (`0x20000000`, the stock save handler) and **overwrote our file** with 128 KB of
+unrelated data. We were never looking at our own dump — we were looking at the native save, every
+single time. One line in `data.json` (point the slot `address` at our buffer, `0x30000000`) and
+suddenly: **`"Magic"` at `0x10D2`, a real photo directory, valid data.** The snoop had been working
+all along.
+
+**Lesson:** when every approach fails *identically*, stop iterating on the approach — you're almost
+certainly reading/writing the wrong location. And on Pocket specifically: a `nonvolatile` data slot
+will quietly write itself back from its `address` on exit; make sure that's the buffer you think it
+is.
+
 ## 🧰 Cheat sheet — writing files to SD from a core
 
 - **`target_dataslot_write` (cmd `0x0184`) works** and is the way to write a file on demand. Drive the
