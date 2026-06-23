@@ -492,14 +492,17 @@ always_ff @(posedge clk_74a) begin
 end
 
 // ============================================================================
-// PocketRoll — DUMP trigger (clk_74a): on R1, start the BUS-MASTER read (reads all 128 KB into the
-// SRAM, the camera reboots after). The save then writes the SRAM to SD on exit. R1 is free (the
-// Game Boy never uses it). We don't use target_dataslot_write (it crashes a running core).
+// PocketRoll — bus-master triggers (clk_74a). The gb is paused (not reset) during both, so the
+// camera resumes after. R1 = DUMP (read all 128 KB → SRAM → save to SD on exit). L1 = RESET the
+// film (blank the bank-0 summary → empty roll → keep shooting = infinite). Both buttons are free.
 // ============================================================================
 reg [1:0] pr_r1_s = 2'd0;
+reg [1:0] pr_l1_s = 2'd0;
 always_ff @(posedge clk_74a) begin
   pr_r1_s                  <= {pr_r1_s[0], cont1_key[9]};   // sync R1
-  bm_start                 <= pr_r1_s[1];                   // R1 held → run the bus-master read
+  pr_l1_s                  <= {pr_l1_s[0], cont1_key[8]};   // sync L1
+  bm_start                 <= pr_r1_s[1];                   // R1 held → bus-master DUMP
+  bm_rst                   <= pr_l1_s[1];                   // L1 held → bus-master RESET the film
   target_dataslot_read     <= 1'b0;
   target_dataslot_write    <= 1'b0;
   target_dataslot_getfile  <= 1'b0;
@@ -683,31 +686,47 @@ data_unloader #(
   .read_data            (sram_rd_byte)
 );
 
-// BUS-MASTER read FSM (clk_sys): on R1 (bm_start), reset the gb, enable RAM, read all 16 banks into
-// the SRAM (sample at cart_phi_fall after a full settle), then release the gb (camera reboots).
-logic        bm_start;
-logic [1:0]  bm_start_sync;
+// BUS-MASTER FSM (clk_sys): the gb is PAUSED (ce gated) while we drive the cart bus.
+//  • R1 (bm_start, mode=READ): enable RAM, read all 16 banks into the SRAM (sample at ce_cpu) → dump.
+//  • L1 (bm_rst,  mode=WRITE): enable RAM, write bank-0's summary to "all empty" + checksum + echo
+//    → the film is blank again. Reset recipe (from tools/gbcam-sav.js, validated): summary
+//    0x11B2..0x11CF = 0xFF, checksum 0x11D5=0x11 / 0x11D6=0x15 (for 30×0xFF), echo at 0x11D7.
+logic        bm_start, bm_rst;
+logic [1:0]  bm_start_sync, bm_rst_sync;
 logic [3:0]  bm_state = 4'd0;
 logic [3:0]  bm_bank;
 logic [12:0] bm_off;
-logic        bm_phi1;
+logic        bm_phi1, bm_mode;          // bm_mode: 0=read/dump, 1=write/reset
 logic [3:0]  bm_swcnt;
+logic [6:0]  bm_widx;                   // reset write index, 0..73 (0x11B2..0x11FB)
+wire  [6:0]  bm_brel = (bm_widx >= 7'h25) ? (bm_widx - 7'h25) : bm_widx;  // fold echo onto base
+wire  [7:0]  bm_wval = (bm_brel <  7'd30) ? 8'hFF :   // summary: all empty
+                       (bm_brel == 7'd30) ? 8'h4D :   // 'M' \
+                       (bm_brel == 7'd31) ? 8'h61 :   // 'a'  |
+                       (bm_brel == 7'd32) ? 8'h67 :   // 'g'  } "Magic" (rewritten, unchanged)
+                       (bm_brel == 7'd33) ? 8'h69 :   // 'i'  |
+                       (bm_brel == 7'd34) ? 8'h63 :   // 'c' /
+                       (bm_brel == 7'd35) ? 8'h11 : 8'h15;  // checksum sum / xor
+wire  [12:0] bm_woff = 13'h11B2 + {6'd0, bm_widx};
 localparam BM_IDLE=0, BM_RAMEN=1, BM_RAMENW=2, BM_BSEL=3, BM_BWAIT=4, BM_RSET=5, BM_RWAIT=6,
-           BM_SWR=7, BM_SWW=8, BM_DONE=9;
+           BM_SWR=7, BM_SWW=8, BM_DONE=9, BM_WSET=10, BM_WWAIT=11;
 always_ff @(posedge clk_sys) begin
   bm_start_sync <= {bm_start_sync[0], bm_start};
+  bm_rst_sync   <= {bm_rst_sync[0],   bm_rst};
   bm_wr <= 1'b0;
   case (bm_state)
     BM_IDLE: begin
       pr_busmaster <= 1'b0; pr_rd <= 1'b0; pr_wr <= 1'b0;
       if (bm_start_sync[1] & cart_physical_mode) begin
-        pr_busmaster <= 1'b1; bm_bank <= 4'd0; bm_off <= 13'd0; bm_state <= BM_RAMEN;
+        pr_busmaster <= 1'b1; bm_mode <= 1'b0; bm_bank <= 4'd0; bm_off <= 13'd0; bm_state <= BM_RAMEN;
+      end else if (bm_rst_sync[1] & cart_physical_mode) begin
+        pr_busmaster <= 1'b1; bm_mode <= 1'b1; bm_bank <= 4'd0; bm_widx <= 7'd0; bm_state <= BM_RAMEN;
       end
     end
     BM_RAMEN:  begin pr_a15<=1'b0; pr_addr<=15'h0000; pr_ncs<=1'b1; pr_di<=8'h0A; pr_wr<=1'b1; pr_rd<=1'b0; bm_phi1<=1'b0; bm_state<=BM_RAMENW; end
     BM_RAMENW: if (cart_phi_fall) begin if(bm_phi1) begin pr_wr<=1'b0; bm_state<=BM_BSEL; end else bm_phi1<=1'b1; end
     BM_BSEL:   begin pr_a15<=1'b0; pr_addr<=15'h4000; pr_ncs<=1'b1; pr_di<={4'b0000,bm_bank}; pr_wr<=1'b1; pr_rd<=1'b0; bm_phi1<=1'b0; bm_state<=BM_BWAIT; end
-    BM_BWAIT:  if (cart_phi_fall) begin if(bm_phi1) begin pr_wr<=1'b0; bm_state<=BM_RSET; end else bm_phi1<=1'b1; end
+    BM_BWAIT:  if (cart_phi_fall) begin if(bm_phi1) begin pr_wr<=1'b0; bm_state<= bm_mode ? BM_WSET : BM_RSET; end else bm_phi1<=1'b1; end
     BM_RSET:   begin pr_a15<=1'b1; pr_addr<={2'b01,bm_off}; pr_ncs<=1'b0; pr_rd<=1'b1; pr_wr<=1'b0; bm_phi1<=1'b0; bm_state<=BM_RWAIT; end
     BM_RWAIT:  if (ce_cpu) begin                       // sample at the gb's proven latch edge (not PHI)
       if (bm_phi1) begin bm_data <= cart_tran_bank1; bm_addr <= {bm_bank, bm_off}; pr_rd<=1'b0; bm_swcnt<=4'd0; bm_state<=BM_SWR; end
@@ -721,7 +740,15 @@ always_ff @(posedge clk_sys) begin
         else begin bm_bank <= bm_bank + 4'd1; bm_state <= BM_BSEL; end
       end else begin bm_off <= bm_off + 13'd1; bm_state <= BM_RSET; end
     end else bm_swcnt <= bm_swcnt + 4'd1;
-    BM_DONE: begin pr_busmaster <= 1'b0; if (~bm_start_sync[1]) bm_state <= BM_IDLE; end // release → reboot
+    // --- reset/write path: drive a cram write of bm_wval to bank-0 offset bm_woff ---
+    BM_WSET:   begin pr_a15<=1'b1; pr_addr<={2'b01,bm_woff}; pr_ncs<=1'b0; pr_di<=bm_wval; pr_wr<=1'b1; pr_rd<=1'b0; bm_phi1<=1'b0; bm_state<=BM_WWAIT; end
+    BM_WWAIT:  if (cart_phi_fall) begin
+      if (bm_phi1) begin pr_wr<=1'b0;
+        if (bm_widx == 7'd73) bm_state <= BM_DONE;
+        else begin bm_widx <= bm_widx + 7'd1; bm_state <= BM_WSET; end
+      end else bm_phi1 <= 1'b1;
+    end
+    BM_DONE: begin pr_busmaster <= 1'b0; if (~bm_start_sync[1] & ~bm_rst_sync[1]) bm_state <= BM_IDLE; end // release → gb resumes
     default: bm_state <= BM_IDLE;
   endcase
 end
@@ -1102,10 +1129,10 @@ end
 // the gameboy itself
 gb gb
 (
-  .reset                  ( reset | ~loading_done | pr_busmaster ), // PocketRoll: reset while we bus-master the dump
+  .reset                  ( reset | ~loading_done   ),
   .clk_sys                ( clk_sys                 ),
-  .ce                     ( ce_cpu                  ),
-  .ce_2x                  ( ce_cpu2x                ),
+  .ce                     ( ce_cpu  & ~pr_busmaster ), // PocketRoll: PAUSE the gb while we bus-master (no reboot)
+  .ce_2x                  ( ce_cpu2x & ~pr_busmaster ),
   
   .isGBC                  ( isGBC                   ),
   .real_cgb_boot          ( 1                       ),  
