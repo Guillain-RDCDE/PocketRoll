@@ -192,6 +192,45 @@ One honest caveat: the snoop only captures **what the camera reads**, so a photo
 past in the grid (thumbnail only) comes out noisy — **open each photo full-screen** before exiting for
 a complete 15/15. (A self-driving "read every bank" pass is future work.)
 
+## 🏆 One button: the bus-master read, finally *seen*
+
+The snoop works but it's tedious — it only captures what the camera reads, so you have to open every
+photo full-screen before exiting. We wanted **one button, no browsing**. That means the core reading
+*all* of cart RAM itself — bus-mastering — the very thing we'd given up on (the "plot twist" above).
+
+But re-reading our own war story, the realization hit: **we never actually saw the bus-master's
+output.** Every "garbage" verdict was the `data.json` bug feeding us the native save, not our buffer.
+The bus-master might have been close all along. So we brought it back: hold the gb in reset, mux the
+cart bus to our FSM, enable RAM, walk all 16 banks, write each byte into the external SRAM, release.
+
+First build (sampling at our free-running `cart_phi_fall`): **94.8 % captured, real photo data, valid
+`"Magic"`** — but the checksum failed. The directory showed why: bytes `0A–0E` came back as `00`.
+Intermittent read errors — a **sampling-phase** problem. The fix was to sample where the gb *itself*
+latches the cartridge: at its CPU clock-enable **`ce_cpu`** (the same edge the snoop trusts), after a
+full CPU cycle of settle — not at our own PHI phase. One line:
+
+```verilog
+// before:  BM_RWAIT: if (cart_phi_fall) ...   // our timing — marginal, reads 00
+// after:   BM_RWAIT: if (ce_cpu)        ...   // the gb's proven latch edge — clean
+```
+
+Next build:
+
+```
+Active photos     : 15 / 30
+Summary (0x11B2)  : 02 03 00 01 04 05 06 07 08 09 0A 0B 0C 0D 0E   ← perfect
+Checksum OK       : YES ✅      Echo consistent: YES ✅
+```
+
+MugDump showed **all 15 photos, clean, in a single R1 press** — no browsing. The lesson echoes the
+whole saga: **don't invent timing for someone else's bus — borrow the timing that already works.** The
+gb core reads this cartridge perfectly every frame; sampling on *its* clock edge is free correctness.
+
+(One rough edge left: bus-mastering resets the gb, so the camera reboots after R1 — sometimes to a
+glitched logo. Harmless to the dump, which the exit-save still writes; cosmetic cleanup is future work.
+And the same "core drives the cart bus" muscle is exactly what the **auto-reset** — the infinite roll —
+will use next.)
+
 ## 🧰 Cheat sheet — writing files to SD from a core
 
 - **`target_dataslot_write` (cmd `0x0184`) works** and is the way to write a file on demand. Drive the

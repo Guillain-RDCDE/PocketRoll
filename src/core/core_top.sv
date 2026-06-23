@@ -492,34 +492,18 @@ always_ff @(posedge clk_74a) begin
 end
 
 // ============================================================================
-// PocketRoll — DUMP trigger (clk_74a): on R1, write the snooped dump_buf (8 KB at 0x30000000) to SD.
-// R1 is free (the Game Boy never uses it). The snoop fills dump_buf continuously as the camera reads.
+// PocketRoll — DUMP trigger (clk_74a): on R1, start the BUS-MASTER read (reads all 128 KB into the
+// SRAM, the camera reboots after). The save then writes the SRAM to SD on exit. R1 is free (the
+// Game Boy never uses it). We don't use target_dataslot_write (it crashes a running core).
 // ============================================================================
-reg  [2:0] pr_dump_st = 3'd0;
-reg  [1:0] pr_r1_s    = 2'd0;
+reg [1:0] pr_r1_s = 2'd0;
 always_ff @(posedge clk_74a) begin
-  pr_r1_s <= {pr_r1_s[0], cont1_key[9]};   // sync R1
-
-  target_dataslot_read     <= 1'b0;        // we only use 'write'
+  pr_r1_s                  <= {pr_r1_s[0], cont1_key[9]};   // sync R1
+  bm_start                 <= pr_r1_s[1];                   // R1 held → run the bus-master read
+  target_dataslot_read     <= 1'b0;
+  target_dataslot_write    <= 1'b0;
   target_dataslot_getfile  <= 1'b0;
   target_dataslot_openfile <= 1'b0;
-
-  case (pr_dump_st)
-    3'd0: begin                            // idle — wait for R1 press
-      target_dataslot_write <= 1'b0;
-      if (pr_r1_s[1]) begin
-        target_dataslot_id         <= 16'd48;          // data.json "PocketRoll" dump slot
-        target_dataslot_slotoffset <= 32'd0;
-        target_dataslot_bridgeaddr <= 32'h3000_0000;   // snooped SRAM window
-        target_dataslot_length     <= 32'h0002_0000;   // 128 KB (full dump)
-        target_dataslot_write      <= 1'b1;
-        pr_dump_st <= 3'd1;
-      end
-    end
-    3'd1: if (target_dataslot_ack)  begin target_dataslot_write <= 1'b0; pr_dump_st <= 3'd2; end
-    3'd2: if (target_dataslot_done) pr_dump_st <= 3'd3;
-    3'd3: if (~pr_r1_s[1])          pr_dump_st <= 3'd0;   // wait for release, then re-arm
-  endcase
 end
 
 logic clk_sys, clk_ram, clk_ram_90, clk_vid, clk_vid_90;
@@ -630,35 +614,54 @@ save_handler save_handler
 );
 
 // ============================================================================
-// PocketRoll — DUMP via SNOOP into the Pocket's external SRAM (128 KB): capture every byte the gb
-// reads from cart RAM (its proven timing), ALL 16 banks, into the SRAM; the save reads it to SD.
-// SRAM defaults to READ (for the data_unloader); a snoop event switches it to a brief WRITE.
+// PocketRoll — DUMP into the Pocket's external SRAM (128 KB). Two writers:
+//  • SNOOP (passive): while the camera runs, capture each cram byte it reads (its proven timing).
+//  • BUS-MASTER (active, on R1): hold the gb in reset, drive the cart bus ourselves, read all 16
+//    banks fast → one button, no browsing. (Its output is finally visible: data.json points here.)
+// The save reads the SRAM to SD. SRAM defaults to READ (data_unloader); a write event drives it.
 // ============================================================================
+
+// cart-bus mux: the gb drives gb_cart_*; while bus-mastering (pr_busmaster) our FSM drives pr_*
+logic [14:0] gb_cart_addr, pr_addr;
+logic        gb_cart_a15, gb_cart_rd, gb_cart_wr, gb_cart_ncs;
+logic [7:0]  gb_cart_di, pr_di;
+logic        pr_busmaster, pr_a15, pr_rd, pr_wr, pr_ncs;
+assign cart_addr = pr_busmaster ? pr_addr : gb_cart_addr;
+assign cart_a15  = pr_busmaster ? pr_a15  : gb_cart_a15;
+assign cart_rd   = pr_busmaster ? pr_rd   : gb_cart_rd;
+assign cart_wr   = pr_busmaster ? pr_wr   : gb_cart_wr;
+assign cart_di   = pr_busmaster ? pr_di   : gb_cart_di;
+assign nCS       = pr_busmaster ? pr_ncs  : gb_cart_ncs;
+
+// one SRAM write request, from the bus-master (during its read) or the snoop (otherwise)
 logic [16:0] snoop_addr;
 logic [7:0]  snoop_data;
 logic        snoop_req;
 logic [2:0]  wcnt;
 logic [7:0]  sram_rd_byte;
 logic [17:0] dump_unloader_addr;
+logic        bm_wr;
+logic [16:0] bm_addr;
+logic [7:0]  bm_data;
 always_ff @(posedge clk_sys) begin
-  // SNOOP: when the gb reads cram (byte valid on the bus), latch it for an SRAM write
-  if (cart_physical_mode & ce_cpu & cram_rd & cart_oe & ~snoop_req) begin
-    snoop_addr <= pr_cram_addr;            // full 17-bit cram byte address (any bank)
-    snoop_data <= cart_tran_bank1;
-    snoop_req  <= 1'b1;
+  if (~snoop_req) begin
+    if (pr_busmaster) begin
+      if (bm_wr) begin snoop_addr <= bm_addr; snoop_data <= bm_data; snoop_req <= 1'b1; end
+    end else if (cart_physical_mode & ce_cpu & cram_rd & cart_oe) begin
+      snoop_addr <= pr_cram_addr; snoop_data <= cart_tran_bank1; snoop_req <= 1'b1;
+    end
   end
   if (snoop_req) begin                     // 6-cycle write (generous for the async SRAM)
-    if (wcnt == 3'd5) begin snoop_req <= 1'b0; wcnt <= 3'd0; end
-    else wcnt <= wcnt + 3'd1;
+    if (wcnt == 3'd5) begin snoop_req <= 1'b0; wcnt <= 3'd0; end else wcnt <= wcnt + 3'd1;
   end else wcnt <= 3'd0;
-  sram_rd_byte <= dump_unloader_addr[0] ? sram_dq[15:8] : sram_dq[7:0]; // latch the read byte
+  sram_rd_byte <= dump_unloader_addr[0] ? sram_dq[15:8] : sram_dq[7:0];
 end
 wire sram_byte = snoop_req ? snoop_addr[0] : dump_unloader_addr[0];
 assign sram_a    = snoop_req ? {1'b0, snoop_addr[16:1]} : {1'b0, dump_unloader_addr[16:1]};
 assign sram_oe_n = snoop_req;                                    // read by default; off during write
 assign sram_we_n = ~(snoop_req & (wcnt >= 3'd1) & (wcnt <= 3'd4)); // we# low cycles 1..4
-assign sram_ub_n = ~sram_byte;                                  // high byte when addr[0]=1
-assign sram_lb_n =  sram_byte;                                  // low  byte when addr[0]=0
+assign sram_ub_n = ~sram_byte;
+assign sram_lb_n =  sram_byte;
 assign sram_dq   = snoop_req ? {snoop_data, snoop_data} : 16'hZZZZ;
 
 // expose the SRAM to the bridge at 0x3xxxxxxx via a data_unloader (1-byte words)
@@ -679,6 +682,49 @@ data_unloader #(
   .read_addr            (dump_unloader_addr),
   .read_data            (sram_rd_byte)
 );
+
+// BUS-MASTER read FSM (clk_sys): on R1 (bm_start), reset the gb, enable RAM, read all 16 banks into
+// the SRAM (sample at cart_phi_fall after a full settle), then release the gb (camera reboots).
+logic        bm_start;
+logic [1:0]  bm_start_sync;
+logic [3:0]  bm_state = 4'd0;
+logic [3:0]  bm_bank;
+logic [12:0] bm_off;
+logic        bm_phi1;
+logic [3:0]  bm_swcnt;
+localparam BM_IDLE=0, BM_RAMEN=1, BM_RAMENW=2, BM_BSEL=3, BM_BWAIT=4, BM_RSET=5, BM_RWAIT=6,
+           BM_SWR=7, BM_SWW=8, BM_DONE=9;
+always_ff @(posedge clk_sys) begin
+  bm_start_sync <= {bm_start_sync[0], bm_start};
+  bm_wr <= 1'b0;
+  case (bm_state)
+    BM_IDLE: begin
+      pr_busmaster <= 1'b0; pr_rd <= 1'b0; pr_wr <= 1'b0;
+      if (bm_start_sync[1] & cart_physical_mode) begin
+        pr_busmaster <= 1'b1; bm_bank <= 4'd0; bm_off <= 13'd0; bm_state <= BM_RAMEN;
+      end
+    end
+    BM_RAMEN:  begin pr_a15<=1'b0; pr_addr<=15'h0000; pr_ncs<=1'b1; pr_di<=8'h0A; pr_wr<=1'b1; pr_rd<=1'b0; bm_phi1<=1'b0; bm_state<=BM_RAMENW; end
+    BM_RAMENW: if (cart_phi_fall) begin if(bm_phi1) begin pr_wr<=1'b0; bm_state<=BM_BSEL; end else bm_phi1<=1'b1; end
+    BM_BSEL:   begin pr_a15<=1'b0; pr_addr<=15'h4000; pr_ncs<=1'b1; pr_di<={4'b0000,bm_bank}; pr_wr<=1'b1; pr_rd<=1'b0; bm_phi1<=1'b0; bm_state<=BM_BWAIT; end
+    BM_BWAIT:  if (cart_phi_fall) begin if(bm_phi1) begin pr_wr<=1'b0; bm_state<=BM_RSET; end else bm_phi1<=1'b1; end
+    BM_RSET:   begin pr_a15<=1'b1; pr_addr<={2'b01,bm_off}; pr_ncs<=1'b0; pr_rd<=1'b1; pr_wr<=1'b0; bm_phi1<=1'b0; bm_state<=BM_RWAIT; end
+    BM_RWAIT:  if (ce_cpu) begin                       // sample at the gb's proven latch edge (not PHI)
+      if (bm_phi1) begin bm_data <= cart_tran_bank1; bm_addr <= {bm_bank, bm_off}; pr_rd<=1'b0; bm_swcnt<=4'd0; bm_state<=BM_SWR; end
+      else bm_phi1 <= 1'b1;                             // skip one ce: a full CPU cycle of settle first
+    end
+    BM_SWR: begin bm_wr <= 1'b1; bm_state <= BM_SWW; end          // request the SRAM write
+    BM_SWW: if (bm_swcnt == 4'd10) begin                          // wait for the write to complete
+      if (bm_off == 13'h1FFF) begin
+        bm_off <= 13'd0;
+        if (bm_bank == 4'd15) bm_state <= BM_DONE;
+        else begin bm_bank <= bm_bank + 4'd1; bm_state <= BM_BSEL; end
+      end else begin bm_off <= bm_off + 13'd1; bm_state <= BM_RSET; end
+    end else bm_swcnt <= bm_swcnt + 4'd1;
+    BM_DONE: begin pr_busmaster <= 1'b0; if (~bm_start_sync[1]) bm_state <= BM_IDLE; end // release → reboot
+    default: bm_state <= BM_IDLE;
+  endcase
+end
 
   logic ss_save, ss_load;
   logic [63:0] SaveStateExt_Din, SaveStateExt_Dout;
@@ -1056,7 +1102,7 @@ end
 // the gameboy itself
 gb gb
 (
-  .reset                  ( reset | ~loading_done   ),
+  .reset                  ( reset | ~loading_done | pr_busmaster ), // PocketRoll: reset while we bus-master the dump
   .clk_sys                ( clk_sys                 ),
   .ce                     ( ce_cpu                  ),
   .ce_2x                  ( ce_cpu2x                ),
@@ -1069,17 +1115,17 @@ gb gb
   .joy_p54                ( joy_p54                 ),
   .joy_din                ( joy_do_sgb              ),
 
-  // interface to the "external" game cartridge
-  .ext_bus_addr           ( cart_addr               ),
-  .ext_bus_a15            ( cart_a15                ),
-  .cart_rd                ( cart_rd                 ),
-  .cart_wr                ( cart_wr                 ),
+  // interface to the "external" game cartridge (PocketRoll: gb_cart_* → muxed into cart_* below)
+  .ext_bus_addr           ( gb_cart_addr            ),
+  .ext_bus_a15            ( gb_cart_a15             ),
+  .cart_rd                ( gb_cart_rd              ),
+  .cart_wr                ( gb_cart_wr              ),
   .cart_do                ( cart_do                 ),
-  .cart_di                ( cart_di                 ),
+  .cart_di                ( gb_cart_di              ),
   .cart_oe                ( cart_oe                 ),
   .cart_wait_n            ( cart_wait_n             ),
 
-  .nCS                    ( nCS                     ),
+  .nCS                    ( gb_cart_ncs             ),
 
   .boot_gba_en            ( gba_en                  ),
   .fast_boot_en           ( 0                       ),
