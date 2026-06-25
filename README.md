@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="pocketroll/docs/social-preview.png" width="100%" alt="PocketRoll — an infinite roll of film for the Game Boy Camera on Analogue Pocket">
+</p>
+
 # PocketRoll 🎞️📸
 
 > Give the **Game Boy Camera** an **infinite roll of film** on the **Analogue Pocket** — the custom
