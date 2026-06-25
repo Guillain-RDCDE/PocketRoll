@@ -492,17 +492,18 @@ always_ff @(posedge clk_74a) begin
 end
 
 // ============================================================================
-// PocketRoll — bus-master triggers (clk_74a). The gb is paused (not reset) during both, so the
-// camera resumes after. R1 = DUMP (read all 128 KB → SRAM → save to SD on exit). L1 = RESET the
-// film (blank the bank-0 summary → empty roll → keep shooting = infinite). Both buttons are free.
+// PocketRoll — DUMP is now done the fluid way: the snoop mirrors physical cart reads into the gb's
+// internal CRAM block RAM (see cart.v), so the Pocket's native SAVESTATE serialises the real photos.
+// Take a savestate (Analogue + Up) → the .sta holds the cart RAM → MugDump reads it. No freeze, no
+// relaunch, no bus-master. R1/L1 are left inert here (reserved for the auto-browse / reset work).
 // ============================================================================
 reg [1:0] pr_r1_s = 2'd0;
 reg [1:0] pr_l1_s = 2'd0;
 always_ff @(posedge clk_74a) begin
-  pr_r1_s                  <= {pr_r1_s[0], cont1_key[9]};   // sync R1
-  pr_l1_s                  <= {pr_l1_s[0], cont1_key[8]};   // sync L1
-  bm_start                 <= pr_r1_s[1];                   // R1 held → bus-master DUMP
-  bm_rst                   <= pr_l1_s[1];                   // L1 held → bus-master RESET the film
+  pr_r1_s                  <= {pr_r1_s[0], cont1_key[9]};
+  pr_l1_s                  <= {pr_l1_s[0], cont1_key[8]};
+  bm_start                 <= 1'b0;   // bus-master idle (kept in the design for the auto-browse work)
+  bm_rst                   <= 1'b0;
   target_dataslot_read     <= 1'b0;
   target_dataslot_write    <= 1'b0;
   target_dataslot_getfile  <= 1'b0;
@@ -628,7 +629,7 @@ save_handler save_handler
 logic [14:0] gb_cart_addr, pr_addr;
 logic        gb_cart_a15, gb_cart_rd, gb_cart_wr, gb_cart_ncs;
 logic [7:0]  gb_cart_di, pr_di;
-logic        pr_busmaster, pr_a15, pr_rd, pr_wr, pr_ncs;
+logic        pr_busmaster, pr_a15, pr_rd, pr_wr, pr_ncs, pr_wait;
 assign cart_addr = pr_busmaster ? pr_addr : gb_cart_addr;
 assign cart_a15  = pr_busmaster ? pr_a15  : gb_cart_a15;
 assign cart_rd   = pr_busmaster ? pr_rd   : gb_cart_rd;
@@ -691,14 +692,17 @@ data_unloader #(
 //  • L1 (bm_rst,  mode=WRITE): enable RAM, write bank-0's summary to "all empty" + checksum + echo
 //    → the film is blank again. Reset recipe (from tools/gbcam-sav.js, validated): summary
 //    0x11B2..0x11CF = 0xFF, checksum 0x11D5=0x11 / 0x11D6=0x15 (for 30×0xFF), echo at 0x11D7.
+// Before releasing, we RESTORE the gb's own bank-select + RAM-enable (captured live below), so the
+// camera resumes on the bank it left off on, not ours — for a clean resume (no freeze).
 logic        bm_start, bm_rst;
 logic [1:0]  bm_start_sync, bm_rst_sync;
-logic [3:0]  bm_state = 4'd0;
+logic [4:0]  bm_state = 5'd0;
 logic [3:0]  bm_bank;
 logic [12:0] bm_off;
 logic        bm_phi1, bm_mode;          // bm_mode: 0=read/dump, 1=write/reset
 logic [3:0]  bm_swcnt;
 logic [6:0]  bm_widx;                   // reset write index, 0..73 (0x11B2..0x11FB)
+logic [7:0]  gb_bank = 8'd0, gb_ramen = 8'd0;  // the gb's last 0x4000 / 0x0000 writes, to restore
 wire  [6:0]  bm_brel = (bm_widx >= 7'h25) ? (bm_widx - 7'h25) : bm_widx;  // fold echo onto base
 wire  [7:0]  bm_wval = (bm_brel <  7'd30) ? 8'hFF :   // summary: all empty
                        (bm_brel == 7'd30) ? 8'h4D :   // 'M' \
@@ -709,18 +713,26 @@ wire  [7:0]  bm_wval = (bm_brel <  7'd30) ? 8'hFF :   // summary: all empty
                        (bm_brel == 7'd35) ? 8'h11 : 8'h15;  // checksum sum / xor
 wire  [12:0] bm_woff = 13'h11B2 + {6'd0, bm_widx};
 localparam BM_IDLE=0, BM_RAMEN=1, BM_RAMENW=2, BM_BSEL=3, BM_BWAIT=4, BM_RSET=5, BM_RWAIT=6,
-           BM_SWR=7, BM_SWW=8, BM_DONE=9, BM_WSET=10, BM_WWAIT=11;
+           BM_SWR=7, BM_SWW=8, BM_WSET=9, BM_WWAIT=10, BM_RESTB=11, BM_RESTBW=12,
+           BM_RESTR=13, BM_RESTRW=14, BM_SETTLE=15, BM_DONE=16;
+// capture the gb's bank-select (0x4000-0x5FFF) and RAM-enable (0x0000-0x1FFF) writes while it runs
+always_ff @(posedge clk_sys) begin
+  if (~pr_busmaster & gb_cart_wr & ~gb_cart_a15) begin
+    if (gb_cart_addr[14:13] == 2'b10) gb_bank  <= gb_cart_di;   // 0x4000-0x5FFF (bank + cam_en)
+    if (gb_cart_addr[14:13] == 2'b00) gb_ramen <= gb_cart_di;   // 0x0000-0x1FFF (RAM enable)
+  end
+end
 always_ff @(posedge clk_sys) begin
   bm_start_sync <= {bm_start_sync[0], bm_start};
   bm_rst_sync   <= {bm_rst_sync[0],   bm_rst};
   bm_wr <= 1'b0;
   case (bm_state)
     BM_IDLE: begin
-      pr_busmaster <= 1'b0; pr_rd <= 1'b0; pr_wr <= 1'b0;
+      pr_busmaster <= 1'b0; pr_rd <= 1'b0; pr_wr <= 1'b0; pr_wait <= 1'b0;
       if (bm_start_sync[1] & cart_physical_mode) begin
-        pr_busmaster <= 1'b1; bm_mode <= 1'b0; bm_bank <= 4'd0; bm_off <= 13'd0; bm_state <= BM_RAMEN;
+        pr_busmaster <= 1'b1; pr_wait <= 1'b1; bm_mode <= 1'b0; bm_bank <= 4'd0; bm_off <= 13'd0; bm_state <= BM_RAMEN;
       end else if (bm_rst_sync[1] & cart_physical_mode) begin
-        pr_busmaster <= 1'b1; bm_mode <= 1'b1; bm_bank <= 4'd0; bm_widx <= 7'd0; bm_state <= BM_RAMEN;
+        pr_busmaster <= 1'b1; pr_wait <= 1'b1; bm_mode <= 1'b1; bm_bank <= 4'd0; bm_widx <= 7'd0; bm_state <= BM_RAMEN;
       end
     end
     BM_RAMEN:  begin pr_a15<=1'b0; pr_addr<=15'h0000; pr_ncs<=1'b1; pr_di<=8'h0A; pr_wr<=1'b1; pr_rd<=1'b0; bm_phi1<=1'b0; bm_state<=BM_RAMENW; end
@@ -736,7 +748,7 @@ always_ff @(posedge clk_sys) begin
     BM_SWW: if (bm_swcnt == 4'd10) begin                          // wait for the write to complete
       if (bm_off == 13'h1FFF) begin
         bm_off <= 13'd0;
-        if (bm_bank == 4'd15) bm_state <= BM_DONE;
+        if (bm_bank == 4'd15) bm_state <= BM_RESTB;
         else begin bm_bank <= bm_bank + 4'd1; bm_state <= BM_BSEL; end
       end else begin bm_off <= bm_off + 13'd1; bm_state <= BM_RSET; end
     end else bm_swcnt <= bm_swcnt + 4'd1;
@@ -744,11 +756,17 @@ always_ff @(posedge clk_sys) begin
     BM_WSET:   begin pr_a15<=1'b1; pr_addr<={2'b01,bm_woff}; pr_ncs<=1'b0; pr_di<=bm_wval; pr_wr<=1'b1; pr_rd<=1'b0; bm_phi1<=1'b0; bm_state<=BM_WWAIT; end
     BM_WWAIT:  if (cart_phi_fall) begin
       if (bm_phi1) begin pr_wr<=1'b0;
-        if (bm_widx == 7'd73) bm_state <= BM_DONE;
+        if (bm_widx == 7'd73) bm_state <= BM_RESTB;
         else begin bm_widx <= bm_widx + 7'd1; bm_state <= BM_WSET; end
       end else bm_phi1 <= 1'b1;
     end
-    BM_DONE: begin pr_busmaster <= 1'b0; if (~bm_start_sync[1] & ~bm_rst_sync[1]) bm_state <= BM_IDLE; end // release → gb resumes
+    // --- restore the gb's bank then RAM-enable, so it resumes exactly where it left off ---
+    BM_RESTB:  begin pr_a15<=1'b0; pr_addr<=15'h4000; pr_ncs<=1'b1; pr_di<=gb_bank;  pr_wr<=1'b1; pr_rd<=1'b0; bm_phi1<=1'b0; bm_state<=BM_RESTBW; end
+    BM_RESTBW: if (cart_phi_fall) begin if(bm_phi1) begin pr_wr<=1'b0; bm_state<=BM_RESTR; end else bm_phi1<=1'b1; end
+    BM_RESTR:  begin pr_a15<=1'b0; pr_addr<=15'h0000; pr_ncs<=1'b1; pr_di<=gb_ramen; pr_wr<=1'b1; pr_rd<=1'b0; bm_phi1<=1'b0; bm_state<=BM_RESTRW; end
+    BM_RESTRW: if (cart_phi_fall) begin if(bm_phi1) begin pr_wr<=1'b0; pr_busmaster<=1'b0; bm_swcnt<=4'd0; bm_state<=BM_SETTLE; end else bm_phi1<=1'b1; end
+    BM_SETTLE: if (bm_swcnt == 4'd8) bm_state <= BM_DONE; else bm_swcnt <= bm_swcnt + 4'd1; // mux back to the gb; let the cartridge settle on its address
+    BM_DONE: begin pr_wait <= 1'b0; if (~bm_start_sync[1] & ~bm_rst_sync[1]) bm_state <= BM_IDLE; end // release WAIT_n → the gb's stalled access completes, it resumes
     default: bm_state <= BM_IDLE;
   endcase
 end
@@ -922,7 +940,10 @@ sdram sdram (
 );
 
 wire [7:0] rom_do = (mbc_addr[0]) ? sdram_do[15:8] : sdram_do[7:0];
-wire [7:0] ram_mask_file, cart_ram_size;
+wire [7:0] ram_mask_file, cart_ram_size_raw;
+// PocketRoll: in physical mode the ROM header isn't loaded, so cart_ram_size is mis-detected and the
+// savestate only grabs a slice of cart RAM. Force 128 KB (code 4) so it serialises the full mirror.
+wire [7:0] cart_ram_size = cart_physical_mode ? 8'd4 : cart_ram_size_raw;
 wire isGBC_game, isSGB_game;
 wire cart_has_save;
 wire [31:0] RTC_timestampOut;
@@ -999,6 +1020,7 @@ cart_top cart
   .speed                      ( speed                   ),
   .megaduck                   ( 0                       ),
   .cart_physical_mode         ( cart_physical_mode      ),
+  .pr_phys_data               ( cart_tran_bank1         ), // PocketRoll: physical read byte to mirror into CRAM
   .mapper_sel                 ( 0                       ),
 
   .cart_addr                  ( cart_addr               ),
@@ -1023,7 +1045,7 @@ cart_top cart
   .cart_download              ( cart_download           ),
 
   .ram_mask_file              ( ram_mask_file           ),
-  .ram_size                   ( cart_ram_size           ),
+  .ram_size                   ( cart_ram_size_raw       ),
   .has_save                   ( cart_has_save           ),
 
   .isGBC_game                 ( isGBC_game              ),
@@ -1131,8 +1153,8 @@ gb gb
 (
   .reset                  ( reset | ~loading_done   ),
   .clk_sys                ( clk_sys                 ),
-  .ce                     ( ce_cpu  & ~pr_busmaster ), // PocketRoll: PAUSE the gb while we bus-master (no reboot)
-  .ce_2x                  ( ce_cpu2x & ~pr_busmaster ),
+  .ce                     ( ce_cpu                  ), // PocketRoll: gb runs normally; we stall its CPU via WAIT_n
+  .ce_2x                  ( ce_cpu2x                ),
   
   .isGBC                  ( isGBC                   ),
   .real_cgb_boot          ( 1                       ),  
@@ -1150,7 +1172,7 @@ gb gb
   .cart_do                ( cart_do                 ),
   .cart_di                ( gb_cart_di              ),
   .cart_oe                ( cart_oe                 ),
-  .cart_wait_n            ( cart_wait_n             ),
+  .cart_wait_n            ( pr_wait ? 1'b0 : cart_wait_n ), // PocketRoll: stall the gb CPU (clean) while we bus-master
 
   .nCS                    ( gb_cart_ncs             ),
 

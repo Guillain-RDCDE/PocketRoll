@@ -7,6 +7,7 @@ module cart_top (
 	input         speed,
 	input         megaduck,
 	input         cart_physical_mode, // PocketRoll: force the camera mapper (banking) for the write-mirror
+	input   [7:0] pr_phys_data,       // PocketRoll: physical cart read byte, mirrored into the CRAM block RAM
 	input   [2:0] mapper_sel,
 
 	input  [14:0] cart_addr,
@@ -409,11 +410,14 @@ wire [7:0] cram_q_l;
 wire is_cram_addr = ~nCS & ~cart_addr[14];
 
 assign cram_rd = cart_rd & is_cram_addr;
-assign cram_wr = sleep_savestate ? Savestate_CRAMRWrEn : mbc_cram_wr || (cart_wr & is_cram_addr & mbc_ram_enable);
+// PocketRoll: while playing a physical cart, mirror every byte the gb READS from cart RAM into the
+// internal CRAM block RAM, so a savestate (which serialises that block RAM) captures the real photos.
+wire pr_mirror_we = cart_physical_mode & ce_cpu & cram_rd & cart_oe;
+assign cram_wr = sleep_savestate ? Savestate_CRAMRWrEn : pr_mirror_we | mbc_cram_wr | (cart_wr & is_cram_addr & mbc_ram_enable);
 
 wire [16:0] cram_addr = sleep_savestate ? Savestate_CRAMAddr[16:0] : mbc_cram_addr;
 assign pr_cram_addr = cram_addr; // PocketRoll snoop
-wire [7:0]    cram_di = sleep_savestate ? Savestate_CRAMWriteData : mbc_cram_wr ? mbc_cram_wr_do : cart_di;
+wire [7:0]    cram_di = sleep_savestate ? Savestate_CRAMWriteData : pr_mirror_we ? pr_phys_data : mbc_cram_wr ? mbc_cram_wr_do : cart_di;
 
 // RAM size
 assign ram_mask_file =              // 0 - no ram
