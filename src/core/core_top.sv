@@ -492,23 +492,54 @@ always_ff @(posedge clk_74a) begin
 end
 
 // ============================================================================
-// PocketRoll — DUMP is now done the fluid way: the snoop mirrors physical cart reads into the gb's
-// internal CRAM block RAM (see cart.v), so the Pocket's native SAVESTATE serialises the real photos.
-// Take a savestate (Analogue + Up) → the .sta holds the cart RAM → MugDump reads it. No freeze, no
-// relaunch, no bus-master. R1/L1 are left inert here (reserved for the auto-browse / reset work).
+// PocketRoll — fluid dump via the native SAVESTATE: cart.v mirrors physical cart reads into the gb's
+// internal CRAM block RAM, so Analogue+Up serialises the real photos to a .sta (MugDump reads it).
+// AUTO-BROWSE (L1): the mirror only sees what the camera READS, so on L1 we inject "Right" presses
+// into the gb's joypad — from the full-screen photo view, that cycles through every photo, so the
+// camera reads them all itself (no freeze, no manual browsing). Then take a savestate.
+// (L1 not R1 — R1 is the core's fast-forward, which would race the camera and white-screen it.)
 // ============================================================================
-reg [1:0] pr_r1_s = 2'd0;
-reg [1:0] pr_l1_s = 2'd0;
+reg [1:0]  pr_r1_s = 2'd0;
+reg [1:0]  pr_l1_s = 2'd0;
+reg        pr_inject_right = 1'b0;
+reg [1:0]  pr_browse_st = 2'd0;
+reg [24:0] pr_browse_cnt = 25'd0;
+reg [5:0]  pr_browse_photo = 6'd0;
+localparam BR_IDLE=0, BR_PRESS=1, BR_GAP=2;
 always_ff @(posedge clk_74a) begin
   pr_r1_s                  <= {pr_r1_s[0], cont1_key[9]};
   pr_l1_s                  <= {pr_l1_s[0], cont1_key[8]};
-  bm_start                 <= 1'b0;   // bus-master idle (kept in the design for the auto-browse work)
+  bm_start                 <= 1'b0;
   bm_rst                   <= 1'b0;
   target_dataslot_read     <= 1'b0;
   target_dataslot_write    <= 1'b0;
   target_dataslot_getfile  <= 1'b0;
   target_dataslot_openfile <= 1'b0;
+  case (pr_browse_st)
+    BR_IDLE: begin
+      pr_inject_right <= 1'b0;
+      if (pr_l1_s[1]) begin pr_browse_photo <= 6'd0; pr_browse_cnt <= 25'd0; pr_browse_st <= BR_PRESS; end
+    end
+    BR_PRESS: begin                                  // hold Right ~80 ms (clean press the camera registers)
+      pr_inject_right <= 1'b1;
+      if (pr_browse_cnt == 25'd6_000_000) begin pr_browse_cnt <= 25'd0; pr_browse_st <= BR_GAP; end
+      else pr_browse_cnt <= pr_browse_cnt + 25'd1;
+    end
+    BR_GAP: begin                                    // release ~160 ms (camera loads the next photo → mirror fills)
+      pr_inject_right <= 1'b0;
+      if (pr_browse_cnt == 25'd12_000_000) begin
+        pr_browse_cnt <= 25'd0;
+        if (pr_browse_photo == 6'd31) pr_browse_st <= BR_IDLE;       // cycled all 30 slots (+margin)
+        else begin pr_browse_photo <= pr_browse_photo + 6'd1; pr_browse_st <= BR_PRESS; end
+      end else pr_browse_cnt <= pr_browse_cnt + 25'd1;
+    end
+    default: pr_browse_st <= BR_IDLE;
+  endcase
 end
+// inject into the gb joypad (clk_sys domain): synchronise pr_inject_right
+reg [1:0] pr_inject_right_cs = 2'd0;
+always_ff @(posedge clk_sys) pr_inject_right_cs <= {pr_inject_right_cs[0], pr_inject_right};
+wire pr_right_inj = pr_inject_right_cs[1];
 
 logic clk_sys, clk_ram, clk_ram_90, clk_vid, clk_vid_90;
 logic pll_core_locked, pll_core_locked_s, reset_n_s, external_reset_s;
@@ -1320,7 +1351,7 @@ wire sgb_lcd_clkena, sgb_lcd_on, sgb_lcd_vsync, sgb_lcd_freeze;
 wire [1:0] sgb_lcd_mode;
 wire sgb_pal_en;
 
-wire [7:0] joystick_0 = {cont1_key_s[15], cont1_key_s[14], cont1_key_s[5], cont1_key_s[4], cont1_key_s[0], cont1_key_s[1], cont1_key_s[2], cont1_key_s[3]};
+wire [7:0] joystick_0 = {cont1_key_s[15], cont1_key_s[14], cont1_key_s[5], cont1_key_s[4], cont1_key_s[0], cont1_key_s[1], cont1_key_s[2], cont1_key_s[3] | pr_right_inj}; // PocketRoll: auto-browse injects Right
 wire [7:0] joystick_1 = {cont2_key_s[15], cont2_key_s[14], cont2_key_s[5], cont2_key_s[4], cont2_key_s[0], cont2_key_s[1], cont2_key_s[2], cont2_key_s[3]};
 wire [7:0] joystick_2 = {cont3_key_s[15], cont3_key_s[14], cont3_key_s[5], cont3_key_s[4], cont3_key_s[0], cont3_key_s[1], cont3_key_s[2], cont3_key_s[3]};
 wire [7:0] joystick_3 = {cont4_key_s[15], cont4_key_s[14], cont4_key_s[5], cont4_key_s[4], cont4_key_s[0], cont4_key_s[1], cont4_key_s[2], cont4_key_s[3]};

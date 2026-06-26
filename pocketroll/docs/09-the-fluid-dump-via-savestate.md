@@ -64,7 +64,19 @@ Browse a few photos → savestate (Analogue + Up) → the .sta now contains:
 Camera "Magic" management pair and slices out the 128 KB). Shoot → savestate → keep shooting; pull the
 PNGs at home.
 
-One honest limit remaining: the mirror only fills with what the camera **reads**, so you still browse
-the photos you want before the savestate. The next step removes even that — **auto-browse** (the core
-injects the camera's own navigation so it reads every photo itself), plus an in-camera **reset** to
-blank the roll. But the wall is down: the dump is finally *fluid*, the way it always should have been.
+## 🤖 Auto-browse — no manual scrolling
+
+The mirror only fills with what the camera *reads*, so at first you still had to open each photo. The
+fix: **let the core press the buttons.** On **L1**, an FSM injects "Right" into the gb's joypad — from
+the full-screen photo view that cycles through every photo, so the camera reads them all itself, no
+freeze, no hand-scrolling. Open the first photo, tap L1, watch them flip past (~8 s), take a savestate.
+
+Two gotchas that cost a build each: **R1 is already the core's fast-forward** — triggering on R1 raced
+the camera into a white-screen, so the trigger moved to **L1**; and the joypad is injected at
+`joystick_0[0]` (the Right bit), synchronised across to the gb's clock. Validated: open photo 0, L1,
+savestate → all three photos (incl. the two never opened by hand) come back with real pixels,
+checksum OK.
+
+So the field flow is now genuinely hands-off: **shoot → open first photo → L1 → savestate → keep
+shooting.** The last piece is an in-camera **reset** to blank the roll between batches. But the dump is
+*fluid and automatic* — the way it always should have been.
