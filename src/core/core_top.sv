@@ -986,18 +986,26 @@ wire RTC_inuse;
 
 assign cart_wait_n = 1'b1;
 // ───────────────────────────────────────────────────────────────────────────────────────────
-// PocketRoll ROM overlay (doc 11): in physical mode, when the gb fetches ROM bank $02 at the three
-// "film full" refusal sites (02:45A4/463B/46FF, the `JP C,$0965`), return $00 (NOP) so the camera
-// never refuses a photo when all 30 directory slots are used — it writes to the slot the free-slot
-// scan returns (A=0). Phase 1 = overwrite slot 0. The ROM's own commit path recomputes the save
-// checksum, so no suicide-wipe. Offsets are identical across the US & JP V1.1 ROMs.
+// PocketRoll ROM overlay (doc 11): patch the SHARED free-slot scan 02:444D so it never reports
+// "film full". Every "is there a blank frame?" check (the "no blank frame" gate AND the capture
+// write sites) far-calls 02:444D, which scans the 30-slot directory and returns carry=SET when no
+// slot matches. We overlay its not-found branch ($4459-$445D, physical bytes AF 37 C3 65 09 =
+// "XOR A; SCF; JP $0965") with "LD B,$1E; JP $445E" (06 1E C3 5E 44): this falls into 444D's own
+// found-branch which computes slot 0 (A=0, carry CLEAR) and returns via the ROM's existing JP — so
+// the patch is version-agnostic (US returns $0965, JP V1.1 $08D0; we reuse whichever). Result: when
+// full, the camera believes slot 0 is free and writes the new photo there (Phase 1 = overwrite slot
+// 0). The ROM's own commit path recomputes the save checksum, so no suicide-wipe. Bank-$02 offset
+// $0459 is identical across US & JP V1.1.
 wire        pr_rom_rd  = cart_physical_mode & ~pr_busmaster & ~cart_a15 & cart_addr[14]; // $4000-$7FFF window
 wire [13:0] pr_rom_off = cart_addr[13:0];
-wire        pr_ovl_hit = pr_rom_rd & (gb_rom_bank == 8'h02) &
-              ( pr_rom_off == 14'h05B6 || pr_rom_off == 14'h05B7 || pr_rom_off == 14'h05B8     // site 02:45A4
-              || pr_rom_off == 14'h064D || pr_rom_off == 14'h064E || pr_rom_off == 14'h064F     // site 02:463B
-              || pr_rom_off == 14'h0711 || pr_rom_off == 14'h0712 || pr_rom_off == 14'h0713 );  // site 02:46FF
-assign cart_do = pr_ovl_hit         ? 8'h00            // PocketRoll: NOP out the refusal
+wire        pr_ovl_hit = pr_rom_rd & (gb_rom_bank == 8'h02)
+                       & (pr_rom_off >= 14'h0459) & (pr_rom_off <= 14'h045D); // 02:444D not-found branch
+wire [7:0]  pr_ovl_byte = (pr_rom_off == 14'h0459) ? 8'h06   // LD B,$1E
+                        : (pr_rom_off == 14'h045A) ? 8'h1E   //   (30 -> found-branch yields slot 0)
+                        : (pr_rom_off == 14'h045B) ? 8'hC3   // JP $445E
+                        : (pr_rom_off == 14'h045C) ? 8'h5E
+                                                   : 8'h44;  // $045D
+assign cart_do = pr_ovl_hit         ? pr_ovl_byte     // PocketRoll: make 02:444D always "find" a slot
                : cart_physical_mode ? cart_tran_bank1
                                     : cart_do_backend;
 assign cart_oe = cart_physical_mode ? cart_read_access : cart_oe_backend;

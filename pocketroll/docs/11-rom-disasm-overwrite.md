@@ -221,3 +221,36 @@ assign cart_do = (patch_hit) ? patch_byte
 Phase 2 extends `patch_hit` with the `$79D2…` injected-routine bytes and changes the three refusal
 overlays from `00 00 00` to `DA D2 79`. **Untested scaffold — build in Quartus 25.1 (`isgbc 0`) and
 verify on hardware per the project's flow.**
+
+---
+
+## 8. Hardware test #1 result → patch moved to the shared scan `02:444D` (2026-06-29)
+
+**Phase-1 (the three write-site refusals) did NOT work**: at 30 photos the camera shows **"no blank
+frame"** and blocks the shutter. Diagnosis: the three sites `45A4/463B/46FF` are the *photo-write*
+routines, reached **after** a *separate "is there a blank frame?" gate* has already passed. The gate
+runs first and shows "no blank frame", so the write sites are never reached — neutralising their
+`JP C` is moot.
+
+**Root-cause fix — patch the shared chokepoint instead.** Every free-slot question (the gate *and* the
+write sites) far-calls **`02:444D`**, the one scan that returns carry=SET when the directory is full.
+`02:444D` is generic (also used for by-image-number lookups — e.g. the home-bank caller `00:1702` does
+`BIT 7,A` then far-calls it with an image number), so we can't blindly force slot 0 for *found* — but
+we can make **"not found" return slot 0**:
+
+- Overlay `02:444D`'s not-found branch, bank-`$02` offset **`$0459`–`$045D`** (physical
+  `AF 37 C3 65 09` = `XOR A; SCF; JP $0965`) → **`06 1E C3 5E 44`** = `LD B,$1E; JP $445E`.
+- This jumps into `444D`'s own **found-branch** (`$445E`), which computes `A = 0` with **carry clear**
+  and returns via the ROM's existing `JP` (US `$0965` / JP V1.1 `$08D0`) → **version-agnostic** (we
+  reuse whichever return the cart has; we never encode it).
+- Net: `02:444D` now *always* reports a slot — the real one when present, else **slot 0**. The gate
+  sees "blank frame available", the shutter is allowed, and capture writes to slot 0.
+
+Side effect (acceptable): a by-image-number lookup that genuinely misses now returns slot 0 instead of
+"not found". In normal use those lookups target existing photos, so they hit the unchanged found-branch;
+the miss case is rare and low-risk for the experiment.
+
+This is the current overlay in `core_top.sv` (replaces the three-site `00 00 00`). Single 5-byte patch
+at one offset, version-agnostic. **If "no blank frame" still appears after this build**, the gate uses
+an *inline* `$D563` scan (not `444D`) and we locate that next; but `444D` is the natural shared chokepoint.
+Phase 2 (true `0→29` cycle via the `$79D2` injected routine) still applies on top once capture is confirmed.
