@@ -734,6 +734,7 @@ logic        bm_phi1, bm_mode;          // bm_mode: 0=read/dump, 1=write/reset
 logic [3:0]  bm_swcnt;
 logic [6:0]  bm_widx;                   // reset write index, 0..73 (0x11B2..0x11FB)
 logic [7:0]  gb_bank = 8'd0, gb_ramen = 8'd0;  // the gb's last 0x4000 / 0x0000 writes, to restore
+logic [7:0]  gb_rom_bank = 8'd1;               // PocketRoll: gb's last 0x2000-0x3FFF ROM-bank write (MBC3), for the ROM overlay
 wire  [6:0]  bm_brel = (bm_widx >= 7'h25) ? (bm_widx - 7'h25) : bm_widx;  // fold echo onto base
 wire  [7:0]  bm_wval = (bm_brel <  7'd30) ? 8'hFF :   // summary: all empty
                        (bm_brel == 7'd30) ? 8'h4D :   // 'M' \
@@ -749,8 +750,9 @@ localparam BM_IDLE=0, BM_RAMEN=1, BM_RAMENW=2, BM_BSEL=3, BM_BWAIT=4, BM_RSET=5,
 // capture the gb's bank-select (0x4000-0x5FFF) and RAM-enable (0x0000-0x1FFF) writes while it runs
 always_ff @(posedge clk_sys) begin
   if (~pr_busmaster & gb_cart_wr & ~gb_cart_a15) begin
-    if (gb_cart_addr[14:13] == 2'b10) gb_bank  <= gb_cart_di;   // 0x4000-0x5FFF (bank + cam_en)
-    if (gb_cart_addr[14:13] == 2'b00) gb_ramen <= gb_cart_di;   // 0x0000-0x1FFF (RAM enable)
+    if (gb_cart_addr[14:13] == 2'b10) gb_bank     <= gb_cart_di;   // 0x4000-0x5FFF (bank + cam_en)
+    if (gb_cart_addr[14:13] == 2'b00) gb_ramen    <= gb_cart_di;   // 0x0000-0x1FFF (RAM enable)
+    if (gb_cart_addr[14:13] == 2'b01) gb_rom_bank <= gb_cart_di;   // 0x2000-0x3FFF (ROM bank, PocketRoll overlay)
   end
 end
 always_ff @(posedge clk_sys) begin
@@ -983,7 +985,21 @@ wire rumbling;
 wire RTC_inuse;
 
 assign cart_wait_n = 1'b1;
-assign cart_do = cart_physical_mode ? cart_tran_bank1 : cart_do_backend;
+// ───────────────────────────────────────────────────────────────────────────────────────────
+// PocketRoll ROM overlay (doc 11): in physical mode, when the gb fetches ROM bank $02 at the three
+// "film full" refusal sites (02:45A4/463B/46FF, the `JP C,$0965`), return $00 (NOP) so the camera
+// never refuses a photo when all 30 directory slots are used — it writes to the slot the free-slot
+// scan returns (A=0). Phase 1 = overwrite slot 0. The ROM's own commit path recomputes the save
+// checksum, so no suicide-wipe. Offsets are identical across the US & JP V1.1 ROMs.
+wire        pr_rom_rd  = cart_physical_mode & ~pr_busmaster & ~cart_a15 & cart_addr[14]; // $4000-$7FFF window
+wire [13:0] pr_rom_off = cart_addr[13:0];
+wire        pr_ovl_hit = pr_rom_rd & (gb_rom_bank == 8'h02) &
+              ( pr_rom_off == 14'h05B6 || pr_rom_off == 14'h05B7 || pr_rom_off == 14'h05B8     // site 02:45A4
+              || pr_rom_off == 14'h064D || pr_rom_off == 14'h064E || pr_rom_off == 14'h064F     // site 02:463B
+              || pr_rom_off == 14'h0711 || pr_rom_off == 14'h0712 || pr_rom_off == 14'h0713 );  // site 02:46FF
+assign cart_do = pr_ovl_hit         ? 8'h00            // PocketRoll: NOP out the refusal
+               : cart_physical_mode ? cart_tran_bank1
+                                    : cart_do_backend;
 assign cart_oe = cart_physical_mode ? cart_read_access : cart_oe_backend;
 
 assign cart_tran_bank3     = cart_access ? cart_addr[7:0] : {6'hzz, rumble_cart_rumble, 1'bz};

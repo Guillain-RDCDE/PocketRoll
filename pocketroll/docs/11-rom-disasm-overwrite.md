@@ -123,3 +123,101 @@ or single-step in an emulator (BGB) with a breakpoint at `02:444D` while taking 
 **Key facts that made it findable:** directory at CPU `$B1B2`; scan compares to `$FF`; counter `$1E`
 (30); checksum seeds materialise as `+$4E` / `^$54` in the store routine; everything in bank `$02`,
 identical US/JP.
+
+---
+
+## 6. The three sites are ALL photo-writes (refined finding)
+
+Dumping the full bodies of `02:45A4 / 463B / 46FF` shows they are **three variants of "write a photo to
+a free slot"**, not one capture + two unrelated ops. Each ends with the **identical tail**:
+
+```
+INC A ; LD ($4000),A          ; select the slot's SRAM ROM/RAM bank (slot+1)
+LD HL,$A000 ; ADD HL,DE
+LD DE,$C000 ; LD BC,$0FB8      ; copy 0x0FB8 (4024) bytes of image from WRAM $C000 ...
+<copy loop>                    ; ... into the SRAM photo slot
+POP HL ; LD A,($D561) ; LD (HL),A   ; write the directory entry
+CALL $43F9                     ; commit dir $D563->$B1B2 + recompute checksum
+... JP $4466                   ; reload dir, far-return
+```
+
+and the **identical preamble**: `CP $1E` (bound) → set `$FF` → far-call `02:444D` → `JP C,$0965`
+(bail if full). They differ only in the metadata set up before the copy:
+- **`02:45A4`** — simplest; sets `$CF33/$CF8F=1`, checksums `$CF00/$CF5C`, runs the directory
+  **renumber** loop (`$460A`: increments image numbers ≥ the inserted one). **Most likely the plain
+  shutter "take a photo".**
+- **`02:463B`** — `B=2` loop, bumps `$CF12` counters capped at `$63` (99), reads `$DA56`.
+- **`02:46FF`** — builds the image from a template (`$47B3`→`$CE00` via `$0462`/`$2685`/`$2A71`), uses
+  `$DA49/$DA8F/$DA90`.
+
+Because the *full-refusal* (`JP C,$0965`) and the *slot index in `A`* are common to all three, a patch
+that neutralises the refusal makes **whichever site is the shutter** stop refusing — no need to
+pre-identify it.
+
+> ROM version note: the refusal opcode bytes differ only in the **return address** — US `DA 65 09`
+> (`JP C,$0965`), JP V1.1 `DA D0 08` (`JP C,$08D0`) — but the **bank-`$02` offsets are identical**
+> (`$05B6 / $064D / $0711`). Neutralising to `00 00 00` is therefore version-agnostic.
+
+---
+
+## 7. Implementation plan (build-ready)
+
+The core already does passthrough ROM reads + bank snoop. The **ROM-overlay** = "when the gb reads ROM
+bank `$02` at offset X (in the `$4000–$7FFF` window), return our byte instead of the physical one."
+Spare overlay canvas confirmed: **bank `$02`, CPU `$79D2–$7FFF` (1582 bytes of `$00`)**,
+foff `0x00B9D2` — free to host an injected routine.
+
+### Phase 1 — "never refuse" (surgical, version-agnostic, ~9 overlay bytes) → FIRST hardware test
+
+Force `$00` at the three refusal sites (turns each `JP C,…` into `NOP NOP NOP`). When full, `02:444D`
+already returns `A=0`, so the camera writes the new photo into **slot 0** instead of refusing.
+
+| Site | bank `$02` offset | foff | physical bytes | overlay → |
+|---|---|---|---|---|
+| 45A4 | `$05B6` | `0x0085B6` | `DA 65 09` (US) / `DA D0 08` (JP) | `00 00 00` |
+| 463B | `$064D` | `0x00864D` | idem | `00 00 00` |
+| 46FF | `$0711` | `0x008711` | idem | `00 00 00` |
+
+This is safe (leaves `02:444D`'s by-image-number lookups untouched) and proves the whole overlay
+mechanism on hardware. **Limitation:** only slot 0 recycles, so shots >30 overwrite slot 0 each time —
+good enough to validate, not the final infinite roll. It also reveals which site is the shutter and how
+the renumber loop behaves when reusing an occupied slot.
+
+### Phase 2 — true cyclic roll (the grail; pairs with savestate-dump-every-30)
+
+Redirect each refusal to an injected routine in the spare canvas:
+`JP C,$0965`(`DA 65 09`) → `JP C,$79D2` (`DA D2 79`). At `$79D2`, the injected routine picks a cycling
+target slot (round-robin counter in a free HRAM/WRAM byte, **or** the oldest slot = lowest directory
+value, which is stateless), sets `A`, then jumps back into that site's continuation
+(`$45B9 / $4650 / $4714`). With cycling overwrite, after each batch of 30 you savestate-dump and keep
+shooting — **this eliminates the film-reset problem entirely** (no blanking needed).
+
+**Open items before/at Phase 2 build (validate in BGB on the retail ROM first):**
+1. Which site is the shutter (so the jump-back targets the right continuation) — Phase 1 answers this.
+2. Slot-selection strategy + interaction with the renumber loop (`$460A`): round-robin counter vs
+   overwrite-oldest. Confirm the directory + checksum stay self-consistent (the ROM's own `$43F9`
+   commit recomputes the checksum, so the suicide-wipe is avoided as long as we only change the slot
+   index, not the write/commit flow).
+
+### FPGA overlay sketch (`core_top.sv` / `cart.v`)
+
+Track the current ROM bank (snoop writes to `$2000–$3FFF`, as we already do for RAM banks). On a
+physical ROM read in the `$4000–$7FFF` window, if `rom_bank == 8'h02` and the in-bank offset matches a
+patch entry, drive the patched byte onto `cart_do` instead of `cart_tran_bank1`:
+
+```verilog
+// pseudo: rom_bank latched from 2000-3FFF writes; addr = gb cart address
+wire in_hi   = (addr[15:14] == 2'b01);            // $4000-$7FFF
+wire [13:0] off = addr[13:0];                      // offset within the banked window
+wire patch_hit = cart_physical_mode & in_hi & (rom_bank == 8'h02) &
+                 ( (off==14'h05B6)||(off==14'h05B7)||(off==14'h05B8)    // site 45A4 refusal
+                 ||(off==14'h064D)||(off==14'h064E)||(off==14'h064F)    // site 463B refusal
+                 ||(off==14'h0711)||(off==14'h0712)||(off==14'h0713) ); // site 46FF refusal
+wire [7:0] patch_byte = 8'h00;                      // Phase 1: NOP
+assign cart_do = (patch_hit) ? patch_byte
+               : cart_physical_mode ? cart_tran_bank1 : cart_do_backend;
+```
+
+Phase 2 extends `patch_hit` with the `$79D2…` injected-routine bytes and changes the three refusal
+overlays from `00 00 00` to `DA D2 79`. **Untested scaffold — build in Quartus 25.1 (`isgbc 0`) and
+verify on hardware per the project's flow.**
