@@ -132,13 +132,19 @@ bank writes. The overlay = "for these few ROM addresses, return our bytes instea
 
 ## 7. Concrete NEXT STEPS
 
-1. **Find the routine to patch.** Locate, in a GB Camera ROM **disassembly**, the code that (a) scans
-   the 0x11B2 vector for the lowest `0xFF` slot and (b) refuses when none is free. Identify the exact
-   (ROM bank, offset) and the byte change that forces a cycling target slot (overwrite). The RE
-   community has worked on this ROM — start there (Boichot's repos, gbdev, any GB Camera disassembly).
+1. ~~**Find the routine to patch.**~~ **DONE (2026-06-29) — see doc 11.** No public disassembly of
+   this logic exists, so we disassembled the retail ROM ourselves. **All photo-management is in ROM
+   bank `$02`, identical offsets US & JP.** Free-slot scan = `02:444D` (scans 30 bytes at WRAM
+   `$D563` for `$FF`, returns `A`=slot + carry-clear, or `A=0` + carry-**set** = "full"). The three
+   "find free slot" sites = `02:45A4 / 02:463B / 02:46FF`; the **"film full" refusal** = the
+   `JP C,$0965` (`DA 65 09`) right after each (foff `0x0085B6 / 0x00864D / 0x008711`). Checksum
+   recomputed by the ROM's own commit path (`02:4407`) → no manual checksum, no suicide-wipe.
 2. **Implement the ROM patch overlay in `core_top`/`cart.v`**: track the ROM bank (snoop 0x2000–0x3FFF
    writes, like we do for RAM banks); for ROM reads at the patch (bank, offset), return the patched
-   byte instead of `cart_tran_bank1`. Tiny, self-contained.
+   byte instead of `cart_tran_bank1`. Tiny, self-contained. **Target now known (doc 11):** overlay
+   bank `$02` at the capture site's refusal — Option A = the 3 bytes `DA 65 09`→`00 00 00` (overwrite
+   slot 0 forever); Option B = jump to a tiny injected routine for a true `0→29` cycle. **First confirm
+   which of the 3 sites is the shutter/capture path** (BGB breakpoint at `02:444D` while shooting).
 3. **Test**: shoot >30 → confirm the camera keeps shooting (overwriting) with no "full" → savestate per
    batch of 30 → MugDump. No reset, no relaunch.
 4. **Fallback in parallel**: if the patch RE stalls, ship the 1-byte suicide-wipe reset (simple,
@@ -195,4 +201,5 @@ MugDump: 99942fe `.sta` support.
 - Commit identity **Guillain-RDCDE**, **zero Claude attribution**, push direct to master, selective
   `git add`. **Never commit personal photo files** (`*.sav`/`*.sta` with real photos — gitignored).
 - Respond in **French**.
-- Docs 06 (build war story) · 07 (dump saga) · 08 (infinite roll) · 09 (fluid savestate dump) · 10 (this).
+- Docs 06 (build war story) · 07 (dump saga) · 08 (infinite roll) · 09 (fluid savestate dump) · 10 (this)
+  · 11 (ROM disassembly: the "film full" routine located & the cyclic-overwrite patch).
