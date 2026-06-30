@@ -254,3 +254,36 @@ This is the current overlay in `core_top.sv` (replaces the three-site `00 00 00`
 at one offset, version-agnostic. **If "no blank frame" still appears after this build**, the gate uses
 an *inline* `$D563` scan (not `444D`) and we locate that next; but `444D` is the natural shared chokepoint.
 Phase 2 (true `0→29` cycle via the `$79D2` injected routine) still applies on top once capture is confirmed.
+
+---
+
+## 9. Hardware test #2 result → the gate is a COUNT, not a scan (2026-06-30)
+
+**The `02:444D` patch alone did NOT lift the limit either** — still "no blank frame" at photo 31,
+*identical* behaviour (so the gate never consulted the patched branch). User clue: deleting photo 1
+makes photo 2 become photo 1 — the directory **slides/renumbers**. That pointed at a maintained
+**count**, not a per-shutter free-slot scan.
+
+Found it. `02:4466` runs after every photo operation and does three things:
+1. reload directory `$B1B2`→`$D563`;
+2. **renumber/compact** the display numbers contiguously (`$447F–$4497`) — this is the "sliding";
+3. **count used slots** (`$4499`: `LD BC,$1E00`; loop 30× `LD A,(HL+); CP $FF; INC C if used`) and
+   store the count at **`$D561`** (`$44A9`, the *only* writer of `$D561`).
+
+Every "film full" gate across the ROM is then `LD A,($D561); CP $1E; …NC→full` (e.g. bank 4 `$4E87`,
+bank 6 `$504B/$52AD/$6070`, bank 7 `$411C`, and the write-site preambles). The shooting-mode shutter
+gate is one of these — independent of `02:444D`, which is why both earlier patches missed it.
+
+**Single-point fix: stop the count from reaching 30.** Cap the count loop to 29 slots —
+bank-`$02` offset **`$049B`** (`02:4499`'s `LD BC,$1E00`, the high byte `$1E`) → **`$1D`**. Then
+`$D561` maxes at 29 and **every** gate passes. When the camera then actually allocates a slot it still
+needs a physical free one, so we keep patch (b) `02:444D`→slot 0. Together: count gate always passes →
+shutter allowed → `444D` yields slot 0 when full → photo overwrites slot 0. Both patches are in
+`core_top.sv` (offsets `$049B` and `$0459–$045D`), version-agnostic.
+
+> Why capping at 29 is safe: photos fill lowest-slot-first, so physical slots `0–28` are all occupied
+> exactly when the roll is full — the loop (now slots `0–28`) reads 29, never 30. Other `$D561`
+> consumers (e.g. "≥10 photos" minigame checks) only care about lower thresholds, unaffected.
+
+Still Phase-1 semantics (overwrite slot 0). Once this confirms "never refuses + writes", Phase 2 swaps
+patch (b) for the `$79D2` cycling routine for a true `0→29` roll.

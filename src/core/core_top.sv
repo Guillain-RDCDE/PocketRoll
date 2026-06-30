@@ -996,16 +996,27 @@ assign cart_wait_n = 1'b1;
 // full, the camera believes slot 0 is free and writes the new photo there (Phase 1 = overwrite slot
 // 0). The ROM's own commit path recomputes the save checksum, so no suicide-wipe. Bank-$02 offset
 // $0459 is identical across US & JP V1.1.
+// Two patches, both in bank $02 (offsets identical US & JP V1.1):
+//  (a) The "film full" GATE everywhere is `($D561) >= 30`, where $D561 = the photo count recomputed by
+//      02:4466 — the loop at 02:4499 (`LD BC,$1E00`; count non-$FF slots into C). Cap that loop to 29
+//      slots: offset $049B `1E`→`1D`. Then $D561 maxes at 29, so every "no blank frame" gate passes.
+//  (b) The shared free-slot scan 02:444D still returns carry=full when truly full; overlay its
+//      not-found branch ($0459-$045D, AF 37 C3 65 09) with `06 1E C3 5E 44` (LD B,$1E; JP $445E) so it
+//      falls into 444D's own found-branch → returns slot 0, carry clear, via the ROM's existing JP
+//      (version-agnostic). With (a) letting the shutter through and (b) yielding a slot, the capture
+//      writes the photo to slot 0 when full. The ROM's commit path recomputes the checksum → no wipe.
 wire        pr_rom_rd  = cart_physical_mode & ~pr_busmaster & ~cart_a15 & cart_addr[14]; // $4000-$7FFF window
 wire [13:0] pr_rom_off = cart_addr[13:0];
-wire        pr_ovl_hit = pr_rom_rd & (gb_rom_bank == 8'h02)
-                       & (pr_rom_off >= 14'h0459) & (pr_rom_off <= 14'h045D); // 02:444D not-found branch
-wire [7:0]  pr_ovl_byte = (pr_rom_off == 14'h0459) ? 8'h06   // LD B,$1E
-                        : (pr_rom_off == 14'h045A) ? 8'h1E   //   (30 -> found-branch yields slot 0)
-                        : (pr_rom_off == 14'h045B) ? 8'hC3   // JP $445E
-                        : (pr_rom_off == 14'h045C) ? 8'h5E
-                                                   : 8'h44;  // $045D
-assign cart_do = pr_ovl_hit         ? pr_ovl_byte     // PocketRoll: make 02:444D always "find" a slot
+wire        pr_in_444d  = (pr_rom_off >= 14'h0459) & (pr_rom_off <= 14'h045D); // 02:444D not-found branch
+wire        pr_in_count = (pr_rom_off == 14'h049B);                            // 02:4499 count-loop length
+wire        pr_ovl_hit  = pr_rom_rd & (gb_rom_bank == 8'h02) & (pr_in_444d | pr_in_count);
+wire [7:0]  pr_ovl_byte = pr_in_count            ? 8'h1D   // (a) count only 29 slots -> $D561 never hits 30
+                        : (pr_rom_off==14'h0459) ? 8'h06   // (b) LD B,$1E
+                        : (pr_rom_off==14'h045A) ? 8'h1E
+                        : (pr_rom_off==14'h045B) ? 8'hC3   //     JP $445E
+                        : (pr_rom_off==14'h045C) ? 8'h5E
+                                                 : 8'h44;
+assign cart_do = pr_ovl_hit         ? pr_ovl_byte     // PocketRoll: defeat the count gate + make 444D always find a slot
                : cart_physical_mode ? cart_tran_bank1
                                     : cart_do_backend;
 assign cart_oe = cart_physical_mode ? cart_read_access : cart_oe_backend;
