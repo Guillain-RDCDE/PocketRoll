@@ -996,27 +996,35 @@ assign cart_wait_n = 1'b1;
 // full, the camera believes slot 0 is free and writes the new photo there (Phase 1 = overwrite slot
 // 0). The ROM's own commit path recomputes the save checksum, so no suicide-wipe. Bank-$02 offset
 // $0459 is identical across US & JP V1.1.
-// Two patches, both in bank $02 (offsets identical US & JP V1.1):
-//  (a) The "film full" GATE everywhere is `($D561) >= 30`, where $D561 = the photo count recomputed by
-//      02:4466 — the loop at 02:4499 (`LD BC,$1E00`; count non-$FF slots into C). Cap that loop to 29
-//      slots: offset $049B `1E`→`1D`. Then $D561 maxes at 29, so every "no blank frame" gate passes.
-//  (b) The shared free-slot scan 02:444D still returns carry=full when truly full; overlay its
-//      not-found branch ($0459-$045D, AF 37 C3 65 09) with `06 1E C3 5E 44` (LD B,$1E; JP $445E) so it
-//      falls into 444D's own found-branch → returns slot 0, carry clear, via the ROM's existing JP
-//      (version-agnostic). With (a) letting the shutter through and (b) yielding a slot, the capture
-//      writes the photo to slot 0 when full. The ROM's commit path recomputes the checksum → no wipe.
+// Phase 2 — true 0->29 cyclic roll. Three overlays, all bank $02 (offsets identical US & JP V1.1):
+//  (a) COUNT GATE: every "film full" check is `($D561) >= 30`, $D561 = used-slot count recomputed by
+//      02:4466 (loop at 02:4499 `LD BC,$1E00`; count non-$FF into C). Cap to 29 slots: offset $049B
+//      `1E`->`1D` so $D561 never hits 30 and every "no blank frame" gate passes.
+//  (b) REDIRECT: the shared scan 02:444D returns carry=full when no slot is free. Overlay its
+//      not-found branch start ($0459-$045B, AF 37 C3) with `C3 B5 7A` (JP $7AB5) -> our routine.
+//  (c) INJECTED ROUTINE at $7AB5 (free in BOTH US & JP): find the OLDEST photo (directory display
+//      number 0 in the WRAM copy $D563) and return its slot index by falling into 444D's own
+//      found-branch ($445E) -> version-agnostic return. Since 02:4466 renumbers/compacts after every
+//      shot, "number 0" rotates across physical slots, so successive full writes overwrite slots in
+//      oldest-first order = a true 0->29 ring. The ROM commits + rechecksums itself (no wipe).
+//      Routine: LD HL,$D563; XOR A; LD B,$1E; .l: CP (HL); JR Z,.f; INC HL; DEC B; JR NZ,.l; .f: JP $445E
 wire        pr_rom_rd  = cart_physical_mode & ~pr_busmaster & ~cart_a15 & cart_addr[14]; // $4000-$7FFF window
 wire [13:0] pr_rom_off = cart_addr[13:0];
-wire        pr_in_444d  = (pr_rom_off >= 14'h0459) & (pr_rom_off <= 14'h045D); // 02:444D not-found branch
-wire        pr_in_count = (pr_rom_off == 14'h049B);                            // 02:4499 count-loop length
-wire        pr_ovl_hit  = pr_rom_rd & (gb_rom_bank == 8'h02) & (pr_in_444d | pr_in_count);
-wire [7:0]  pr_ovl_byte = pr_in_count            ? 8'h1D   // (a) count only 29 slots -> $D561 never hits 30
-                        : (pr_rom_off==14'h0459) ? 8'h06   // (b) LD B,$1E
-                        : (pr_rom_off==14'h045A) ? 8'h1E
-                        : (pr_rom_off==14'h045B) ? 8'hC3   //     JP $445E
-                        : (pr_rom_off==14'h045C) ? 8'h5E
-                                                 : 8'h44;
-assign cart_do = pr_ovl_hit         ? pr_ovl_byte     // PocketRoll: defeat the count gate + make 444D always find a slot
+wire        pr_in_count = (pr_rom_off == 14'h049B);                            // (a) 02:4499 count-loop length
+wire        pr_in_redir = (pr_rom_off >= 14'h0459) & (pr_rom_off <= 14'h045B); // (b) 02:444D not-found -> JP $7AB5
+wire        pr_in_inj   = (pr_rom_off >= 14'h3AB5) & (pr_rom_off <= 14'h3AC4); // (c) injected routine @ $7AB5
+wire        pr_ovl_hit  = pr_rom_rd & (gb_rom_bank == 8'h02) & (pr_in_count | pr_in_redir | pr_in_inj);
+// (b) redirect bytes: JP $7AB5
+wire [7:0]  pr_redir_byte = (pr_rom_off==14'h0459) ? 8'hC3 : (pr_rom_off==14'h045A) ? 8'hB5 : 8'h7A;
+// (c) injected routine bytes, indexed from $3AB5 (byte 0 = MSB of the constant)
+wire [3:0]  pr_inj_idx  = pr_rom_off[3:0] + 4'd11; // ($3AB5 low nibble = 5; offset within = off-$3AB5; idx0..15)
+wire [127:0] PR_INJ     = {8'h21,8'h63,8'hD5,8'hAF,8'h06,8'h1E,8'hBE,8'h28,
+                           8'h04,8'h23,8'h05,8'h20,8'hF9,8'hC3,8'h5E,8'h44};
+wire [7:0]  pr_inj_byte = PR_INJ[(4'd15 - pr_inj_idx)*8 +: 8];
+wire [7:0]  pr_ovl_byte = pr_in_count ? 8'h1D
+                        : pr_in_redir ? pr_redir_byte
+                                      : pr_inj_byte;
+assign cart_do = pr_ovl_hit         ? pr_ovl_byte     // PocketRoll: count gate + cyclic oldest-slot overwrite
                : cart_physical_mode ? cart_tran_bank1
                                     : cart_do_backend;
 assign cart_oe = cart_physical_mode ? cart_read_access : cart_oe_backend;

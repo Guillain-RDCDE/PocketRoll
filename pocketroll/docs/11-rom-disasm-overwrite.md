@@ -286,4 +286,33 @@ shutter allowed → `444D` yields slot 0 when full → photo overwrites slot 0. 
 > consumers (e.g. "≥10 photos" minigame checks) only care about lower thresholds, unaffected.
 
 Still Phase-1 semantics (overwrite slot 0). Once this confirms "never refuses + writes", Phase 2 swaps
-patch (b) for the `$79D2` cycling routine for a true `0→29` roll.
+patch (b) for the cycling routine for a true `0→29` roll.
+
+---
+
+## 10. Hardware test #3 → IT WORKS, infinite shooting → Phase 2 (cyclic) (2026-06-30)
+
+**Test #3 succeeded**: shot ~37 photos into an empty album with no "no blank frame" — the count cap +
+`02:444D`→slot-0 defeated the gate and the camera kept capturing. Observed: the counter went to 1 at
+photo 30 and stayed at 1; the film held photos ~2–29, slot 30 empty, slot 1 = the *latest* shot. That
+is exactly Phase-1 (overwrite one slot): the count is capped at 29 (so slot 30 reads "uncounted" and the
+displayed counter can't pass) and `02:444D` returns the lowest slot (0) every time it's full, so every
+shot past the fill overwrites that one slot.
+
+**Phase 2 — true `0→29` ring (current overlay).** Replace patch (b): instead of always returning slot 0,
+redirect `02:444D`'s not-found branch to an injected routine that returns the **oldest** photo's slot
+(directory display-number `0`). Because `02:4466` renumbers/compacts after every shot, "number 0"
+rotates across physical slots, so successive full writes recycle slots oldest-first = a real ring. The
+dump (savestate) then reads 30 distinct recent photos; shoot 30 → dump → shoot 30 (overwriting the
+oldest) → dump → … infinite, **no reset needed**.
+
+Overlays now (all bank `$02`, free space common to US & JP):
+- (a) count cap — offset `$049B` `1E`→`1D` (unchanged).
+- (b) redirect — offset `$0459`–`$045B` (`AF 37 C3`) → `C3 B5 7A` = `JP $7AB5`.
+- (c) injected routine — offset `$3AB5`–`$3AC4` (`$7AB5`, `$00` in both ROMs) →
+  `21 63 D5 AF 06 1E BE 28 04 23 05 20 F9 C3 5E 44` =
+  `LD HL,$D563; XOR A; LD B,$1E; .l: CP (HL); JR Z,.f; INC HL; DEC B; JR NZ,.l; .f: JP $445E`
+  (falls into `444D`'s found-branch → returns the oldest slot index, carry clear, version-agnostic).
+
+Implemented in `core_top.sv`. **UNTESTED — rebuild Quartus 25.1.** Expected: shooting past 30 overwrites
+slots in oldest-first order (the gallery's oldest photo is the one replaced), not always slot 1.
