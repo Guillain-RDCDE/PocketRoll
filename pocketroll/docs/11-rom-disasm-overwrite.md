@@ -316,3 +316,23 @@ Overlays now (all bank `$02`, free space common to US & JP):
 
 Implemented in `core_top.sv`. **UNTESTED — rebuild Quartus 25.1.** Expected: shooting past 30 overwrites
 slots in oldest-first order (the gallery's oldest photo is the one replaced), not always slot 1.
+
+---
+
+## 11. Hardware test #4 → 🏆 CYCLIC ROLL CONFIRMED (2026-06-30/07-01)
+
+**Test #4 succeeded.** Shooting past the limit now lands photos in **different slots**, cycling (the
+user saw new shots arrive at slots 30, 29, 28, 27… — filling from the end and rotating), instead of
+always overwriting one slot. The ring works: each new photo replaces the oldest, so 30 distinct recent
+photos are always retained. The fill *order* (descending) is cosmetic — MugDump reads physical slots
+regardless, so the dump-every-30 workflow gets fresh batches.
+
+**The film is now infinite by software alone, and the "film reset" problem (the one open item across
+docs 07–10) is eliminated — cycling removes the need to blank the roll.** The full dream loop is
+validated end to end: shoot 30 → L1 auto-browse → savestate `.sta` → keep shooting (recycles the oldest,
+never refuses) → MugDump `.sta`→PNG at home. Autonomous, no PC in the field.
+
+Final overlay (bank `$02`, in `core_top.sv`): (a) count cap `$049B`, (b) redirect `$0459–$045B`,
+(c) injected oldest-slot routine `$3AB5–$3AC4`. Version-agnostic (offsets + free space common to US &
+JP V1.1). The reusable core mechanism: snoop `gb_rom_bank` (`$2000–$3FFF` writes) and substitute bytes
+on `cart_do` when the gb reads bank `$02` at the patched offsets.

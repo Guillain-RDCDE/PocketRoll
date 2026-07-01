@@ -15,10 +15,13 @@ the camera's cart-RAM reads into the gb's internal CRAM block RAM, so a **native
 turns it into PNGs. **L1 auto-browses** (injects "Right") so the camera reads every photo itself — no
 manual scrolling. **Zero freeze, zero relaunch, no PC in the field.**
 
-**The ONE unsolved problem: resetting the film** (blanking the cartridge directory so the camera can
-shoot a fresh 30). Every direct attempt freezes the gb or is blocked by the camera's checksum/suicide
-logic. **The reframe (from research): don't reset — patch the ROM so the camera OVERWRITES.** Next step
-is reverse-engineering the GB Camera ROM's "find a free slot / film full" routine to patch it.
+**The ONE unsolved problem WAS resetting the film** (blanking the cartridge directory so the camera can
+shoot a fresh 30). Every direct attempt froze the gb or was blocked by the camera's checksum/suicide
+logic. **SOLVED (2026-07-01) — don't reset, make the ROM OVERWRITE.** We disassembled the retail ROM
+ourselves, found the photo-management logic in ROM bank `$02`, and the core now overlays a few patched
+bytes on its ROM reads so the camera **cycles 0→29 and overwrites the oldest photo** instead of refusing
+— an infinite roll by software alone, no reset needed. Confirmed on hardware (shooting past 30 recycles
+slots). Full story: **doc 11**. The dream is complete.
 
 ---
 
