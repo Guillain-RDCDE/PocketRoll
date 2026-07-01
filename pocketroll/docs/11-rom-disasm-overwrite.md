@@ -361,3 +361,21 @@ whole overlay is now gated off during `sleep_savestate` (the gb is paused then; 
 and must not perturb the save). By-number lookups behave exactly as stock again; only the free-slot
 "full" case is redirected. Rebuild + retest the full loop (shoot 30 → savestate → shoot 30 → savestate
 → MugDump both `.sta`).
+
+---
+
+## 13. Savestate still froze → runtime toggle "Infinite Roll" (2026-07-01)
+
+The §12 fixes (by-number restore + `~sleep_savestate` gate) did **not** fix the savestate freeze. A
+diff vs the last known-good savestate commit (`0986332`) confirms the overlay is the *only* change, and
+since gating it off during the save didn't help, the freeze comes from the **state the overlay leaves
+after shooting/browsing** — most likely a camera routine that loops "while a free slot exists": our
+patch makes the free-slot search *always* succeed, so a termination condition somewhere never trips and
+the gb can't reach the savestate's safe pause point.
+
+Rather than keep guessing blind across 1-hour builds, the overlay is now behind a **core-menu toggle**
+("PocketRoll: Infinite Roll", `run_settings` bit 8, default OFF; `interact.json` id 1007). This both
+**isolates** the cause and gives a **working workflow**: OFF = stock camera (savestate dumps fine), ON =
+shoot past 30. Field loop: enable → shoot 30 → disable → open photo 1 + L1 auto-browse → savestate →
+enable → shoot 30 … Both `.sta` decode in MugDump. If a seamless always-on version is wanted later, the
+looping routine must be found and its bound patched too; the toggle is the pragmatic ship.

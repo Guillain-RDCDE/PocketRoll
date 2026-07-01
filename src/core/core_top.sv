@@ -1019,7 +1019,12 @@ wire [13:0] pr_rom_off = cart_addr[13:0];
 wire        pr_in_count = (pr_rom_off == 14'h049B);                            // (a) 02:4499 count-loop length
 wire        pr_in_redir = (pr_rom_off >= 14'h0459) & (pr_rom_off <= 14'h045B); // (b) 02:444D not-found -> JP $7AB5
 wire        pr_in_inj   = (pr_rom_off >= 14'h3AB5) & (pr_rom_off <= 14'h3ACD); // (c) injected routine @ $7AB5 (25 bytes)
-wire        pr_ovl_hit  = pr_rom_rd & (gb_rom_bank == 8'h02) & (pr_in_count | pr_in_redir | pr_in_inj);
+// Runtime toggle (core menu "Infinite roll", run_settings bit 8): the ROM patch conflicts with the
+// native savestate (the camera's idle/full logic changes when the free-slot search never reports full,
+// so the save can't pause the gb cleanly). Keep it OFF to dump (savestate works = stock camera), ON to
+// shoot past 30. Workflow: enable -> shoot -> disable -> auto-browse + savestate -> enable -> shoot...
+wire        pr_infinite_en = run_settings_s[8];
+wire        pr_ovl_hit  = pr_infinite_en & pr_rom_rd & (gb_rom_bank == 8'h02) & (pr_in_count | pr_in_redir | pr_in_inj);
 // (b) redirect bytes: JP $7AB5
 wire [7:0]  pr_redir_byte = (pr_rom_off==14'h0459) ? 8'hC3 : (pr_rom_off==14'h045A) ? 8'hB5 : 8'h7A;
 // (c) injected routine bytes, indexed from $3AB5 (byte 0 = MSB of the constant)

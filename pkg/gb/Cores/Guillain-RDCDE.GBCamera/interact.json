@@ -91,6 +91,17 @@
         "mask":       "0xFFFFFF7F",
         "defaultval": "0x00000000",
         "value":      "0x00000080"
+      },
+      {
+        "name": "PocketRoll: Infinite Roll",
+        "id": 1007,
+        "type": "check",
+        "enabled": true,
+        "persist": true,
+        "address":    "0xF2000000",
+        "mask":       "0xFFFFFEFF",
+        "defaultval": "0x00000000",
+        "value":      "0x00000100"
       }
     ],
     "messages": []
