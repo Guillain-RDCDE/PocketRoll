@@ -1002,29 +1002,35 @@ assign cart_wait_n = 1'b1;
 //      `1E`->`1D` so $D561 never hits 30 and every "no blank frame" gate passes.
 //  (b) REDIRECT: the shared scan 02:444D returns carry=full when no slot is free. Overlay its
 //      not-found branch start ($0459-$045B, AF 37 C3) with `C3 B5 7A` (JP $7AB5) -> our routine.
-//  (c) INJECTED ROUTINE at $7AB5 (free in BOTH US & JP): find the OLDEST photo (directory display
-//      number 0 in the WRAM copy $D563) and return its slot index by falling into 444D's own
-//      found-branch ($445E) -> version-agnostic return. Since 02:4466 renumbers/compacts after every
-//      shot, "number 0" rotates across physical slots, so successive full writes overwrite slots in
-//      oldest-first order = a true 0->29 ring. The ROM commits + rechecksums itself (no wipe).
-//      Routine: LD HL,$D563; XOR A; LD B,$1E; .l: CP (HL); JR Z,.f; INC HL; DEC B; JR NZ,.l; .f: JP $445E
-wire        pr_rom_rd  = cart_physical_mode & ~pr_busmaster & ~cart_a15 & cart_addr[14]; // $4000-$7FFF window
+//  (c) INJECTED ROUTINE at $7AB5 (free in BOTH US & JP). 02:444D is generic (free-slot search with
+//      A=$FF *and* by-image-number lookups), so the routine FIRST checks A: only for a free-slot
+//      search that came up full (A=$FF) does it find the OLDEST photo (display number 0 in the WRAM
+//      copy $D563) and fall into 444D's found-branch ($445E) to return that slot; for a by-number
+//      miss it restores the original "not found" (XOR A; SCF; JP $4463 = the ROM's own version JP).
+//      This preserves by-number lookups (returning a slot for them corrupts state -> savestate crash).
+//      Since 02:4466 renumbers/compacts after every shot, "number 0" rotates across physical slots,
+//      so successive full writes recycle slots oldest-first = a true 0->29 ring.
+//      Routine: CP $FF; JR NZ,.nf; LD HL,$D563; XOR A; LD B,$1E; .l:CP(HL);JR Z,.f;INC HL;DEC B;
+//               JR NZ,.l; .nf:XOR A;SCF;JP $4463; .f:JP $445E
+// The overlay is disabled during a savestate (~sleep_savestate) — the gb is paused then, so the ROM
+// patch is not needed and must not perturb the save.
+wire        pr_rom_rd  = cart_physical_mode & ~pr_busmaster & ~sleep_savestate & ~cart_a15 & cart_addr[14]; // $4000-$7FFF
 wire [13:0] pr_rom_off = cart_addr[13:0];
 wire        pr_in_count = (pr_rom_off == 14'h049B);                            // (a) 02:4499 count-loop length
 wire        pr_in_redir = (pr_rom_off >= 14'h0459) & (pr_rom_off <= 14'h045B); // (b) 02:444D not-found -> JP $7AB5
-wire        pr_in_inj   = (pr_rom_off >= 14'h3AB5) & (pr_rom_off <= 14'h3AC4); // (c) injected routine @ $7AB5
+wire        pr_in_inj   = (pr_rom_off >= 14'h3AB5) & (pr_rom_off <= 14'h3ACD); // (c) injected routine @ $7AB5 (25 bytes)
 wire        pr_ovl_hit  = pr_rom_rd & (gb_rom_bank == 8'h02) & (pr_in_count | pr_in_redir | pr_in_inj);
 // (b) redirect bytes: JP $7AB5
 wire [7:0]  pr_redir_byte = (pr_rom_off==14'h0459) ? 8'hC3 : (pr_rom_off==14'h045A) ? 8'hB5 : 8'h7A;
 // (c) injected routine bytes, indexed from $3AB5 (byte 0 = MSB of the constant)
-wire [3:0]  pr_inj_idx  = pr_rom_off[3:0] + 4'd11; // ($3AB5 low nibble = 5; offset within = off-$3AB5; idx0..15)
-wire [127:0] PR_INJ     = {8'h21,8'h63,8'hD5,8'hAF,8'h06,8'h1E,8'hBE,8'h28,
-                           8'h04,8'h23,8'h05,8'h20,8'hF9,8'hC3,8'h5E,8'h44};
-wire [7:0]  pr_inj_byte = PR_INJ[(4'd15 - pr_inj_idx)*8 +: 8];
+wire [7:0]  pr_inj_idx  = pr_rom_off - 14'h3AB5;   // 0..24 within range
+wire [199:0] PR_INJ     = {8'hFE,8'hFF,8'h20,8'h0D,8'h21,8'h63,8'hD5,8'hAF,8'h06,8'h1E,8'hBE,8'h28,8'h09,
+                           8'h23,8'h05,8'h20,8'hF9,8'hAF,8'h37,8'hC3,8'h63,8'h44,8'hC3,8'h5E,8'h44};
+wire [7:0]  pr_inj_byte = PR_INJ[(8'd24 - pr_inj_idx)*8 +: 8];
 wire [7:0]  pr_ovl_byte = pr_in_count ? 8'h1D
                         : pr_in_redir ? pr_redir_byte
                                       : pr_inj_byte;
-assign cart_do = pr_ovl_hit         ? pr_ovl_byte     // PocketRoll: count gate + cyclic oldest-slot overwrite
+assign cart_do = pr_ovl_hit         ? pr_ovl_byte     // PocketRoll: count gate + cyclic oldest-slot overwrite (free-search only)
                : cart_physical_mode ? cart_tran_bank1
                                     : cart_do_backend;
 assign cart_oe = cart_physical_mode ? cart_read_access : cart_oe_backend;

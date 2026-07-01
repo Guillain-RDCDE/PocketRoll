@@ -336,3 +336,28 @@ Final overlay (bank `$02`, in `core_top.sv`): (a) count cap `$049B`, (b) redirec
 (c) injected oldest-slot routine `$3AB5–$3AC4`. Version-agnostic (offsets + free space common to US &
 JP V1.1). The reusable core mechanism: snoop `gb_rom_bank` (`$2000–$3FFF` writes) and substitute bytes
 on `cart_do` when the gb reads bank `$02` at the patched offsets.
+
+---
+
+## 12. Bug: savestate crashed → the redirect was too broad (2026-07-01)
+
+Shooting 30 then triggering a savestate **crashed the core** (reproducibly). Timing was clean
+(setup slack +2.2 ns), so it was functional. Cause: the §10/§11 injected routine returned the oldest
+slot for **every** `02:444D` not-found — including **by-image-number** lookups (the UI does many, e.g.
+`00:1702` `BIT 7,A` → far-call). Handing those a slot instead of "not found" corrupts state; the gb
+drifts into a bad state and the savestate (which must pause it at a safe point) crashes.
+
+Fix — the injected routine now checks the search value first and only diverts a **free-slot search**:
+```
+CP $FF ; JR NZ,.nf            ; by-number miss -> keep "not found"
+LD HL,$D563 ; XOR A ; LD B,$1E
+.l: CP (HL) ; JR Z,.f ; INC HL ; DEC B ; JR NZ,.l
+.nf: XOR A ; SCF ; JP $4463    ; restore not-found via the ROM's own JP $0965/$08D0 (version-agnostic)
+.f:  JP $445E                  ; free & full -> oldest slot, carry clear
+```
+Bytes at `$7AB5` (offset `$3AB5–$3ACD`, 25 B):
+`FE FF 20 0D 21 63 D5 AF 06 1E BE 28 09 23 05 20 F9 AF 37 C3 63 44 C3 5E 44`. Also, defensively, the
+whole overlay is now gated off during `sleep_savestate` (the gb is paused then; the patch isn't needed
+and must not perturb the save). By-number lookups behave exactly as stock again; only the free-slot
+"full" case is redirected. Rebuild + retest the full loop (shoot 30 → savestate → shoot 30 → savestate
+→ MugDump both `.sta`).
