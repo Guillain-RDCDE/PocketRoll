@@ -1183,6 +1183,14 @@ always_ff @(posedge clk_sys) begin
     if (speed != cart_speed_prev) begin
       cart_phi_counter <= 6'd0;
       cart_phi         <= 1'b1;
+    end else if (cart_pause_active) begin
+      // PocketRoll (savestate resume fix): the gb CPU clock (clkdiv in speedcontrol) is
+      // frozen for the whole savestate pause. Freeze the physical-cart PHI on the same
+      // cycles so, on resume, cart_phi and the CPU cadence are still in-phase — otherwise
+      // PHI free-runs during the (long) state read-out, resumes out of phase, the first
+      // cart read latches garbage, the CPU derails and the screen splits/freezes.
+      cart_phi_counter <= cart_phi_counter;
+      cart_phi         <= cart_phi;
     end else if (cart_phi_rise) begin
       cart_phi_counter <= 6'd0;
       cart_phi         <= 1'b1;
@@ -1539,6 +1547,7 @@ end
 //////////////////////////////// CE ////////////////////////////////////
 
 wire ce_cpu, ce_cpu2x;
+wire cart_pause_active;   // PocketRoll: speedcontrol PAUSED (clkdiv frozen) → freeze cart PHI too
 wire cart_act     = cart_wr | cart_rd;
 wire fastforward  = ff_en && cont1_key_s[9] && !ioctl_download;
 wire ff_on;
@@ -1559,7 +1568,8 @@ speedcontrol speedcontrol
   .ce          ( ce_cpu               ),
   .ce_2x       ( ce_cpu2x             ),
   .refresh     ( sdram_refresh_force  ),
-  .ff_on       ( ff_on                )
+  .ff_on       ( ff_on                ),
+  .pause_active ( cart_pause_active   )
 );
 
 ///////////////////////////// Fast Forward Latch /////////////////////////////////

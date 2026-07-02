@@ -20,6 +20,39 @@ byte-for-byte the stock budude2 core). So it is **NOT** our ROM patch. It is the
 
 ---
 
+## 0.5 RESOLUTION (2026-07-02) — physical-cart PHI desync on resume
+
+**Root cause (found by code analysis, awaiting hardware confirmation).** In physical passthrough the gb
+CPU is *not* wait-stalled by the cart (`cart_wait_n = 1'b1`, core_top ~L987); a cart read is correctly
+timed only because two clk_sys counters stay in phase: `clkdiv` (the `ce_cpu` phase generator inside
+`speedcontrol`) and `cart_phi_counter` (the physical-cart PHI, core_top ~L1176). During a savestate the
+gb is paused — `speedcontrol` freezes `clkdiv` — but **`cart_phi` kept free-running** through the (long)
+state read-out. On resume `clkdiv` restarts at its frozen phase while `cart_phi` is at an arbitrary phase
+→ the first cart read latches out-of-phase data → the CPU jumps to garbage and freezes; because it stops
+writing LCDC/scroll mid-frame, the camera's raster UI "splits in two". This matches every symptom, is
+independent of our overlay (both counters are stock), and explains why §3 was probably "always glitched":
+the PHI-freeze never existed upstream (budude2's savestate targets SDRAM ROMs, not a live physical cart).
+Confirms hypothesis #2; refutes #1 (the PPU savestate in `src/gb/video.v` is in fact complete — it
+serialises the whole mid-frame pipeline: `h_cnt/v_cnt/pcnt/window_match/win_line/bg_fetch_cycle/…`).
+
+**Fix (commit — this session).** Freeze `cart_phi` on exactly the cycles `clkdiv` is frozen, so the two
+resume in-phase:
+- `src/gb/speedcontrol.vhd`: new output `pause_active` = `'1'` while `state = PAUSED` (covers the entry at
+  `clkdiv="111"` through the 15-cycle unpause tail — the full clkdiv-frozen window).
+- `src/core/core_top.sv`: wire `cart_pause_active`; in the `cart_phi` counter, `else if (cart_pause_active)`
+  holds `cart_phi_counter`/`cart_phi` (added before the `cart_phi_rise` branch). Residual phase skew ≈ 1
+  clk_sys out of 32 (~3 %), well inside the ~24-cycle PHI-high data window.
+
+**Why it's sufficient (no other desync source).** `speedcontrol` only enters PAUSED when `cart_act='0'`
+(L62) → the gb never freezes mid cart-transaction; on resume it starts a fresh, correctly-timed cycle.
+During pause `ce_cpu`/`ce_cpu2x` are gated, the CRAM snoop (L685) is gated by `ce_cpu`, `gb_cart_addr` is
+held, and SDRAM refresh is internal (no PHI dependency). `cart_phi` was the only physical signal drifting.
+
+**Status: code done + reasoned; NEEDS Guillain to compile/flash + confirm resume is clean** (savestate →
+no glitch/split/freeze → keep shooting, no relaunch). If confirmed, the "first brick" is closed. See §7.
+
+---
+
 ## 1. What the glitch looks like (hardware, reported by Guillain)
 
 - Trigger a savestate (Analogue + Up). The camera image glitches, comes back for ~1 millisecond, then
@@ -115,7 +148,9 @@ snoop `gb_rom_bank` (writes to `$2000-$3FFF`) + substitute bytes on `cart_do` wh
 - ✅ Savestate WRITE → valid `.sta` with real photos.
 - ✅ MugDump **web** reads `.sta` (v0.8.0; ported `coerceGbCamSave` to `docs/`; earlier only Electron had
   it). Repo `Guillain-RDCDE/MugDump`, branch `main`.
-- ⚠️ **Savestate RESUME glitches/freezes → relaunch per batch.** ← the ONE thing to fix.
+- 🔧 **Savestate RESUME glitch — FIX applied (§0.5), awaiting hardware confirmation.** Root cause: the
+  physical-cart PHI free-ran during the savestate pause and resumed out of phase. Now `cart_phi` freezes
+  in lockstep with the CPU clock. If Guillain confirms a clean resume, the relaunch-per-batch wart is gone.
 
 Current usable workflow (with the wart): toggle ON → shoot 30 → toggle OFF → open photo 1 + L1
 auto-browse → savestate (`.sta` saved) → **relaunch core** → toggle ON → shoot 30 → … ; MugDump at home.

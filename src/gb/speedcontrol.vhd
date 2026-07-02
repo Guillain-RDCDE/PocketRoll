@@ -13,7 +13,8 @@ entity speedcontrol is
       ce          : out    std_logic := '0';
       ce_2x       : buffer std_logic := '0';
       refresh     : out    std_logic := '0';
-      ff_on       : out    std_logic := '0'
+      ff_on       : out    std_logic := '0';
+      pause_active : out   std_logic := '0'   -- PocketRoll: high while clkdiv is frozen (PAUSED state)
    );
 end entity;
 
@@ -41,6 +42,11 @@ architecture arch of speedcontrol is
    signal state : tstate := NORMAL;
 
 begin
+
+   -- PocketRoll: clkdiv is frozen for the whole PAUSED window (entry at clkdiv="111"
+   -- through the 15-cycle unpause tail). Expose it so core_top can freeze the physical
+   -- cart PHI on the exact same cycles → the gb resumes in-phase with the cart bus.
+   pause_active <= '1' when state = PAUSED else '0';
 
    process(clk_sys)
    begin
