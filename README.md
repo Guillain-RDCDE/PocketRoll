@@ -12,6 +12,11 @@
 > [`src/`](src/) and [`pkg/`](pkg/); our additions and research live in [`pocketroll/`](pocketroll/).
 > Upstream README preserved as [`README.budude2.md`](README.budude2.md).
 
+> ### 📖 New here? **[Read the story → *An Infinite Roll*](STORY.md)**
+> How a 1998 camera was taught to shoot forever: a save that wipes itself if you cheat, a bug that
+> ate three days and was fixed by one character, and a ROM nobody had ever disassembled. Reads like a
+> novel — unfolds into full schematics.
+
 ---
 
 ## What's the deal?
