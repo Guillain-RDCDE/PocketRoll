@@ -20,9 +20,13 @@ byte-for-byte the stock budude2 core). So it is **NOT** our ROM patch. It is the
 
 ---
 
-## 0.5 RESOLUTION (2026-07-02) — physical-cart PHI desync on resume
+## 0.5 RESOLUTION (2026-07-02) — physical-cart PHI desync on resume ✅ CONFIRMED ON HARDWARE
 
-**Root cause (found by code analysis, awaiting hardware confirmation).** In physical passthrough the gb
+**✅ FIXED & CONFIRMED on the Pocket (2026-07-02, commit `8405b51`).** Guillain built (Quartus 25.1),
+flashed and tested: savestate now resumes cleanly — no split, no freeze, keeps shooting with no relaunch.
+The "first brick" (fully autonomous infinite roll, end to end, zero PC in the field) is **closed**.
+
+**Root cause (found by code analysis, confirmed by the fix working).** In physical passthrough the gb
 CPU is *not* wait-stalled by the cart (`cart_wait_n = 1'b1`, core_top ~L987); a cart read is correctly
 timed only because two clk_sys counters stay in phase: `clkdiv` (the `ce_cpu` phase generator inside
 `speedcontrol`) and `cart_phi_counter` (the physical-cart PHI, core_top ~L1176). During a savestate the
@@ -48,8 +52,8 @@ resume in-phase:
 During pause `ce_cpu`/`ce_cpu2x` are gated, the CRAM snoop (L685) is gated by `ce_cpu`, `gb_cart_addr` is
 held, and SDRAM refresh is internal (no PHI dependency). `cart_phi` was the only physical signal drifting.
 
-**Status: code done + reasoned; NEEDS Guillain to compile/flash + confirm resume is clean** (savestate →
-no glitch/split/freeze → keep shooting, no relaunch). If confirmed, the "first brick" is closed. See §7.
+**Status: ✅ DONE — built, flashed, confirmed clean on hardware (2026-07-02).** Savestate resumes with no
+glitch/split/freeze; shooting continues without a relaunch. The "first brick" is closed. See §7.
 
 ---
 
@@ -148,9 +152,12 @@ snoop `gb_rom_bank` (writes to `$2000-$3FFF`) + substitute bytes on `cart_do` wh
 - ✅ Savestate WRITE → valid `.sta` with real photos.
 - ✅ MugDump **web** reads `.sta` (v0.8.0; ported `coerceGbCamSave` to `docs/`; earlier only Electron had
   it). Repo `Guillain-RDCDE/MugDump`, branch `main`.
-- 🔧 **Savestate RESUME glitch — FIX applied (§0.5), awaiting hardware confirmation.** Root cause: the
-  physical-cart PHI free-ran during the savestate pause and resumed out of phase. Now `cart_phi` freezes
-  in lockstep with the CPU clock. If Guillain confirms a clean resume, the relaunch-per-batch wart is gone.
+- ✅ **Savestate RESUME — FIXED & CONFIRMED on hardware (§0.5, commit `8405b51`).** The physical-cart PHI
+  free-ran during the savestate pause and resumed out of phase; now `cart_phi` freezes in lockstep with the
+  CPU clock. Tested on the Pocket: clean resume, no relaunch. The relaunch-per-batch wart is **gone**.
+
+**🏆 The infinite-roll dream is now complete AND wart-free**: shoot → savestate (clean resume) → keep
+shooting forever → dump `.sta` → MugDump → PNG, all on the Pocket + cartridge + SD, zero PC in the field.
 
 Current usable workflow (with the wart): toggle ON → shoot 30 → toggle OFF → open photo 1 + L1
 auto-browse → savestate (`.sta` saved) → **relaunch core** → toggle ON → shoot 30 → … ; MugDump at home.
