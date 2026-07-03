@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="lang-en">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -49,11 +49,6 @@
   }
   .wrap{position:relative; z-index:1}
 
-  /* ---------- language visibility ---------- */
-  [data-lang="fr"]{display:none}
-  html.lang-fr [data-lang="fr"]{display:revert}
-  html.lang-fr [data-lang="en"]{display:none}
-
   /* ---------- reading progress ---------- */
   .progress{position:fixed; top:0; left:0; height:2px; width:0%; z-index:50;
     background:linear-gradient(90deg,var(--phos-dim),var(--phos)); box-shadow:0 0 8px rgba(155,188,15,.6)}
@@ -66,12 +61,6 @@
   .brand{font-family:var(--mono); font-size:.82rem; letter-spacing:.12em; text-transform:uppercase;
     color:var(--dim); text-decoration:none; white-space:nowrap}
   .brand b{color:var(--phos); font-weight:600}
-  .langtoggle{display:inline-flex; border:1px solid var(--edge); border-radius:999px; overflow:hidden;
-    font-family:var(--mono); font-size:.72rem; letter-spacing:.08em}
-  .langtoggle button{appearance:none; border:0; background:transparent; color:var(--dim);
-    padding:.32rem .7rem; cursor:pointer; font:inherit; letter-spacing:inherit}
-  .langtoggle button[aria-pressed="true"]{background:var(--phos); color:#10160c; font-weight:600}
-  .langtoggle button:focus-visible{outline:2px solid var(--phos); outline-offset:2px}
 
   /* ---------- layout ---------- */
   main{padding:0 clamp(1rem,4vw,2rem)}
@@ -353,43 +342,33 @@
 
 <header class="topbar">
   <a class="brand" href="https://github.com/Guillain-RDCDE/PocketRoll"><b>PocketRoll</b> · the making-of</a>
-  <div class="langtoggle" role="group" aria-label="Language / Langue">
-    <button type="button" id="btn-en" aria-pressed="true">EN</button>
-    <button type="button" id="btn-fr" aria-pressed="false">FR</button>
-  </div>
 </header>
 
 <main>
 
   <!-- ================= HERO ================= -->
   <section class="hero">
-    <p class="eyebrow"><span data-lang="en">A field dossier</span><span data-lang="fr">Un dossier de terrain</span></p>
+    <p class="eyebrow">A field dossier</p>
     <h1>An&nbsp;Infinite<br><span class="inf flicker">Roll</span></h1>
-    <p class="dek">
-      <span data-lang="en">Teaching a 1998 Game Boy Camera to shoot forever — on an FPGA, with no PC in the field.</span>
-      <span data-lang="fr">Apprendre à un Game Boy Camera de 1998 à photographier sans fin — sur un FPGA, sans PC sur le terrain.</span>
-    </p>
-    <p class="sub">
-      <span data-lang="en">A save that wipes itself if you cheat · a bug that ate three days · a ROM nobody had ever disassembled.<br>Read it straight through, or unfold the <span style="color:var(--phos)">⌖ deep-dive</span> boxes for the bytes, the Verilog, the disassembly.</span>
-      <span data-lang="fr">Une sauvegarde qui s'efface si vous trichez · un bug qui a mangé trois jours · une ROM que personne n'avait désassemblée.<br>Lisez d'une traite, ou dépliez les boîtes <span style="color:var(--phos)">⌖ deep-dive</span> pour les octets, le Verilog, le désassemblage.</span>
-    </p>
+    <p class="dek">Teaching a 1998 Game Boy Camera to shoot forever — on an FPGA, with no PC in the field.</p>
+    <p class="sub">A save that wipes itself if you cheat · a bug that ate three days · a ROM nobody had ever disassembled.<br>Read it straight through, or unfold the <span style="color:var(--phos)">⌖ deep-dive</span> boxes for the bytes, the Verilog, the disassembly.</p>
   </section>
 
   <!-- ================= TOC ================= -->
   <nav class="toc" aria-label="Contents">
-    <h2><span data-lang="en">The descent, in six movements</span><span data-lang="fr">La descente, en six mouvements</span></h2>
+    <h2>The descent, in six movements</h2>
     <ol>
-      <li><a href="#prologue"><span class="n">00</span><span class="t"><span data-lang="en">Thirty Photos</span><span data-lang="fr">Trente photos</span></span></a></li>
-      <li><a href="#ch1"><span class="n">01</span><span class="t"><span data-lang="en">The Save That Fights Back</span><span data-lang="fr">La sauvegarde qui se défend</span></span></a></li>
-      <li><a href="#ch2"><span class="n">02</span><span class="t"><span data-lang="en">White Screen</span><span data-lang="fr">Écran blanc</span></span></a></li>
-      <li><a href="#ch3"><span class="n">03</span><span class="t"><span data-lang="en">The Bug That Ate Three Days</span><span data-lang="fr">Le bug qui a mangé trois jours</span></span></a></li>
-      <li><a href="#ch4"><span class="n">04</span><span class="t"><span data-lang="en">Patching a ROM Nobody Disassembled</span><span data-lang="fr">Patcher une ROM que personne n'avait désassemblée</span></span></a></li>
-      <li><a href="#ch5"><span class="n">05</span><span class="t"><span data-lang="en">Split in Two</span><span data-lang="fr">Coupé en deux</span></span></a></li>
+      <li><a href="#prologue"><span class="n">00</span><span class="t">Thirty Photos</span></a></li>
+      <li><a href="#ch1"><span class="n">01</span><span class="t">The Save That Fights Back</span></a></li>
+      <li><a href="#ch2"><span class="n">02</span><span class="t">White Screen</span></a></li>
+      <li><a href="#ch3"><span class="n">03</span><span class="t">The Bug That Ate Three Days</span></a></li>
+      <li><a href="#ch4"><span class="n">04</span><span class="t">Patching a ROM Nobody Disassembled</span></a></li>
+      <li><a href="#ch5"><span class="n">05</span><span class="t">Split in Two</span></a></li>
     </ol>
   </nav>
 
   <!-- ================= ENGLISH ARTICLE ================= -->
-  <article data-lang="en" lang="en">
+  <article lang="en">
 
     <section class="chapter" id="prologue">
       <div class="strip" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
@@ -510,143 +489,20 @@
 
   </article>
 
-  <!-- ================= FRENCH ARTICLE ================= -->
-  <article data-lang="fr" lang="fr">
-
-    <section class="chapter">
-      <div class="strip" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="chapter-head"><p class="chapter-label">Prologue</p><h2>Trente photos</h2></div>
-      <p class="lead drop">En 1998, le Game Boy Camera pouvait garder trente photos. Pas trente par session — trente, <em>en tout</em>, pour toujours, jusqu'à ce que vous en effaciez pour faire de la place. La cartouche portait une petite puce avec la place pour trente images et un programme qui comptait, poliment, jusqu'à trente, puis refusait.</p>
-      <p>Je voulais l'infini.</p>
-      <p>Pas l'infini « on branche à un PC et on vide la pellicule » — celui-là existait déjà, et il fallait un PC. Je voulais me tenir dans un champ avec pour seul équipement une Analogue Pocket, la cartouche d'origine de 1998 et une carte SD, et photographier jusqu'à remplir la carte. Pas d'ordinateur. Pas de câbles. Trente devient infini, et la caméra ne s'en aperçoit jamais.</p>
-      <p>Le problème, c'est que la caméra dit vrai. Il n'y a réellement que trente emplacements, et le programme refuse réellement le trente-et-unième. Pour lui mentir de façon convaincante, il fallait atteindre trois machines différentes empilées l'une dans l'autre — une <strong>ROM</strong> qui voit un capteur photo mais n'a aucune notion de fichier ; une <strong>cartouche</strong> qui porte physiquement le capteur et trente images ; et, sous les deux, une <strong>puce programmable</strong> qui fait semblant, porte logique par porte logique, d'être une Game Boy.</p>
-      <figure class="reveal"><svg class="fig" viewBox="0 0 600 288" role="img" aria-label="Trois couches empilées : la ROM, la cartouche, et le cœur FPGA sous les deux"><use href="#fig-stack"/></svg><figcaption>La pile qu'il faut duper. Seule la couche du bas — <b>le cœur FPGA</b> — peut toucher la carte SD, et c'est celle que l'on a le droit de réécrire.</figcaption></figure>
-      <p>Cette troisième couche, personne ne l'attend, et c'est elle qui rend tout possible. L'Analogue Pocket n'émule pas une Game Boy en logiciel — elle en <em>devient</em> une, en chargeant un « cœur » FPGA qui câble une Game Boy à partir de logique brute. Et surtout, l'un de ces cœurs — le <code>openfpga-GBC</code> de budude2, descendant du cœur Game Boy de MiSTer — peut faire tourner une <strong>vraie cartouche branchée dans la Pocket</strong>, en laissant passer le bus vivant vers du vrai silicium de 1998.</p>
-      <p>Ce qui donnait au plan, aussi absurde qu'il sonnait, une forme : laisser la cartouche et son capteur totalement intacts et physiques, et réécrire <em>la Game Boy en dessous</em> pour qu'elle remarque chaque photo, la copie sur la SD, et recycle discrètement l'emplacement. Voici l'histoire de comment on apprend à cette pile à mentir — et de chaque fois où elle a menti en retour.</p>
-      <details class="dive"><summary>La sauvegarde qui s'efface si vous trichez<span class="lbl">deep dive</span></summary><div class="dive-body">
-        <p>Avant de toucher la moindre porte logique, il fallait comprendre ce qu'<em>est</em> une photo sur cette cartouche. Les 128 Ko de RAM de sauvegarde forment un en-tête de 8 Ko suivi de trente emplacements de 4 Ko (<code>0x2000 + i*0x1000</code>). La caméra suit les emplacements utilisés avec un <strong>vecteur sommaire de 30 octets à <code>0x11B2</code></strong> — un octet par emplacement, la valeur étant le numéro d'affichage de la photo, <code>0xFF</code> voulant dire vide. Juste après vient la chaîne littérale <code>"Magic"</code> (<code>0x11D0</code>), un <strong>checksum de deux octets</strong> (<code>0x11D5</code>/<code>0x11D6</code>), puis un <strong>écho</strong> de 37 octets de tout le bloc.</p>
-        <figure><svg class="fig" viewBox="0 0 600 250" role="img" aria-label="Carte mémoire du save : en-tête, emplacements, et le bloc de gestion sommaire, Magic, checksum et écho"><use href="#fig-save"/></svg></figure>
-        <p>Voici le piège. Le checksum n'est pas un CRC. C'est une <strong>somme initialisée à <code>0x2F</code></strong> et un <strong>XOR initialisé à <code>0x15</code></strong>, sur les octets du sommaire <em>seuls</em> — <code>"Magic"</code> est exclu. J'ai rétro-conçu ces graines à la main et les ai confirmées contre la vérité terrain : j'ai effacé une photo sur la vraie caméra et dumpé avant et après. Avant : deux photos, sommaire <code>00 01</code> ; après : une photo, sommaire <code>00</code>, checksum <code>0x12 / 0xEA</code>. Ma formule donnait exactement <code>0x12 / 0xEA</code>.</p>
-        <p>Et voici la chute, le fait qui a dicté toute l'architecture : corrompez le checksum, ou perdez le marqueur <code>"Magic"</code>, et la caméra ne se contente pas de rejeter la sauvegarde. <strong>Au prochain démarrage, elle efface toute la cartouche.</strong> Code suicide. Impossible donc de libérer un emplacement en réécrivant la sauvegarde depuis l'extérieur — l'écrasement doit venir de <em>l'intérieur</em> de la logique de la ROM. Ce qui, plus tard, m'a forcé à désassembler une ROM que personne n'avait jamais désassemblée. Mais je m'avance.</p>
-      </div></details>
-    </section>
-
-    <section class="chapter">
-      <div class="chapter-head"><p class="chapter-label">Chapitre I</p><h2>La sauvegarde qui se défend</h2></div>
-      <p class="drop">Le format de sauvegarde m'a pris une semaine à vraiment maîtriser, et l'essentiel de cette semaine s'est passé à me tromper de façons instructives.</p>
-      <p>La documentation publique du save du Game Boy Camera — et il en existe, grâce à des gens comme Raphaël Boichot et insideGadgets, des années sur ce matériel — se trompait subtilement sur le checksum, ou décrivait une autre révision de ROM (Hello Kitty, ou le prototype « Debagame », qui range sa pellicule tout autrement). Chaque fois que je bâtissais un outil sur la description d'un autre, il divergeait de mes vrais dumps de quelques octets. J'ai donc cessé de faire confiance aux descriptions et me suis mis à faire confiance à la cartouche : forger une sauvegarde, la charger, voir ce que la <em>caméra</em> en fait, et laisser le désaccord m'instruire.</p>
-      <p>Cette boucle — forger, charger, observer, comparer — est devenue la méthode de tout le projet. Elle est lente, elle est humble, et c'est la seule qui marche quand la documentation et le silicium se contredisent et que l'un des deux ment.</p>
-      <p>À la fin de la semaine, j'avais une petite bibliothèque capable de lire la pellicule, vérifier les deux checksums, et libérer un emplacement comme le ferait la caméra elle-même — recalculant le checksum, recopiant l'écho, laissant les octets d'image intacts. Elle passait un auto-test contre la vérité terrain à six octets près sur 131 072, et ces six octets se sont révélés être un horodatage d'animation, pas de la pellicule. La recette de recyclage était juste.</p>
-      <p>Restait un seul problème, celui du prologue : je savais désormais <em>exactement</em> comment éditer la sauvegarde, et je savais aussi que l'éditer depuis l'extérieur était un piège. La recette était à la fois juste et inutile. Pour vraiment m'en servir, il fallait que quelque chose <em>à l'intérieur</em> du système en marche l'applique — donc entrer dans le système en marche.</p>
-    </section>
-
-    <section class="chapter">
-      <div class="chapter-head"><p class="chapter-label">Chapitre II</p><h2>Écran blanc</h2></div>
-      <p class="drop">On n'« entre » pas à la légère dans une Analogue Pocket. Pas de système d'exploitation où se connecter, pas de débogueur, pas de printf. Il y a un compilateur (le Quartus d'Intel, un mastodonte de 20 gigaoctets), un fork d'un cœur Game Boy écrit en Verilog et VHDL, et une boucle de retour d'environ une heure entre « j'ai changé une ligne » et « je découvre si la Pocket est d'accord ».</p>
-      <p>J'ai forké le cœur de budude2, compilé tel quel, empaqueté, copié sur la SD — et obtenu un écran noir. Puis un <em>autre</em> écran noir. Puis un blanc.</p>
-      <details class="dive"><summary>Deux écrans noirs, deux causes sans rapport<span class="lbl">deep dive</span></summary><div class="dive-body">
-        <p>Le premier écran noir était une erreur d'empaquetage et une leçon sur l'intransigeance d'openFPGA. Le dossier d'un cœur sur la SD doit se nommer <em>exactement</em> <code>&lt;auteur&gt;.&lt;nom-court&gt;</code>. J'avais nommé le dossier d'un côté et le nom-court de l'autre, et la Pocket a rejeté avec un générique « core setup error ». Je l'ai isolé en glissant le bitstream <em>officiel</em> et en le voyant échouer à l'identique — ce n'était donc pas mon build, c'était le nom.</p>
-        <p>Le second était plus subtil et a coûté du vrai temps. Mon build <em>se chargeait</em> et restait noir. Deux choses fausses à la fois :</p>
-        <p>① Le <code>core_top.sv</code> amont laisse <code>`define isgbc 1</code> — il compile le cœur Game Bo<strong>y Color</strong>, qui réclame un <code>gbc_bios.bin</code>. Empaqueté en Game Boy simple, il ne démarre pas. Un caractère : <code>`define isgbc 0</code>.</p>
-        <p>② Même corrigé, il restait noir sauf compilé avec <strong>Quartus Prime Lite 25.1</strong> précisément. Les blocs IP et PLL committés ont été générés contre cette version ; avec 18.1 ou 24.1, ils compilent proprement mais synthétisent des <em>horloges subtilement fausses</em> — le FPGA tourne, ne produit aucune vidéo valide, et ne montre que du noir. Il n'y a pas d'erreur. Il n'y a que le noir.</p>
-        <p>L'empaquetage est son propre rituel : openFPGA veut le bitstream <strong>inversé bit à bit</strong> (les bits de chaque octet retournés) et renommé <code>gb.rbf_r</code>. J'ai écrit un petit <code>reverse_rbf.js</code> pour ça, et il a tourné à chaque build depuis.</p>
-      </div></details>
-      <p>L'écran blanc, quand il est enfin venu, était un progrès : blanc veut dire que le cœur est vivant et exécute le démarrage de la caméra, il ne voit simplement pas de sauvegarde valide. Et ce fut l'instant où tout a cessé d'être théorie. Le 19 juin, ma propre Game Boy sur mesure — compilée depuis les sources sur ma machine, inversée bit à bit, copiée sur une SD — a démarré la vraie cartouche Game Boy Camera et <strong>a pris une photo.</strong></p>
-      <p>La pile tenait debout. Il fallait maintenant lui apprendre à mentir.</p>
-    </section>
-
-    <section class="chapter">
-      <div class="chapter-head"><p class="chapter-label">Chapitre III</p><h2>Le bug qui a mangé trois jours</h2></div>
-      <p class="drop">Voici la partie dont je suis le moins fier et dont j'ai le plus appris.</p>
-      <p>Le but était simple à énoncer : quand la caméra prend une photo, copier les 128 Ko de RAM de sauvegarde sur la SD. Je savais que la Pocket pouvait écrire des fichiers. Je savais où vivaient les photos. Ç'aurait dû être une après-midi.</p>
-      <p>Ce ne fut pas une après-midi. J'ai essayé de miroiter la RAM de la cartouche en mémoire interne : garbage. J'ai essayé le bus-mastering — pauser la Game Boy et piloter le bus cartouche moi-même pour lire les seize banques : garbage. J'ai essayé la sauvegarde native de sortie de la Pocket : <em>le même garbage.</em> Techniques différentes, à des semaines d'écart, produisant toutes octet pour octet la même sortie fausse. Quand toutes les routes mènent au même mauvais endroit, ce ne sont pas les routes qui sont fausses. C'est qu'on lit au mauvais endroit.</p>
-      <figure class="reveal"><svg class="fig" viewBox="0 0 620 200" role="img" aria-label="Trois techniques de dump produisant toutes le même garbage, car l'adresse de lecture était fausse"><use href="#fig-witness"/></svg><figcaption>Trois techniques, un échec identique — l'indice que je ne déboguais pas les techniques, je <b>lisais le mauvais fichier.</b></figcaption></figure>
-      <p>L'outil qui a tout craqué était bête et parfait : un <strong>fichier-témoin</strong> rempli de <code>0xAA</code>. J'ai rempli la sauvegarde de <code>0xAA</code>, chargé, pris une photo, dumpé. Si mon dump revenait plein de <code>0xAA</code>, ma <em>capture</em> était cassée ; si autre chose, mon <em>chemin de lecture</em> l'était. Il est revenu à 98,6 % de <code>0xFF</code>, pas du tout du <code>0xAA</code>. Le fichier que je lisais n'était même pas celui que j'avais écrit. Je ne regardais pas mon dump. Je ne l'avais jamais regardé.</p>
-      <details class="dive"><summary>Un caractère : 0x2 → 0x3<span class="lbl">deep dive</span></summary><div class="dive-body">
-        <p>Les slots de données de la Pocket ont un champ <code>address</code> — l'endroit où la Pocket lit quand elle sauvegarde ce slot sur SD. Mon buffer de dump était exposé au bridge de la Pocket à <code>0x30000000</code>. Mais le slot que j'avais configuré était marqué <code>nonvolatile</code>, et son <code>address</code> pointait toujours sur <code>0x20000000</code> — la région du <em>save-handler</em>, la plomberie conçue pour la sauvegarde normale d'une cartouche virtuelle.</p>
-        <p>Donc à chaque sortie et chaque mise en veille, la Pocket effectuait consciencieusement une « sauvegarde native » : elle lisait <code>0x20000000</code> (du n'importe quoi en mode cartouche physique) et <strong>écrasait mon fichier de dump avec.</strong> Je relisais toujours le garbage du save-handler — jamais mon buffer soigneusement capturé. Chaque technique avait marché ; je n'avais simplement jamais regardé sa sortie.</p>
-        <p>Le fix : pointer l'<code>address</code> du slot sur <code>0x30000000</code>. Un chiffre hexa. <code>0x2</code> → <code>0x3</code>. Trois jours. La leçon m'est restée : quand <em>toutes</em> vos approches échouent <em>à l'identique</em>, cessez d'améliorer les approches — vous lisez ou écrivez au mauvais endroit, et l'identité de l'échec est l'indice.</p>
-      </div></details>
-      <p>Ce chiffre corrigé, les dumps ont pris vie. Un <strong>espion</strong> passif — surveiller chaque octet que la caméra elle-même lit sur la cartouche et le copier de côté — a produit une sauvegarde valide avec de vraies photos : mon visage, mon bureau, un piano. Pour capter les seize banques (un buffer de 128 Ko ne tient pas dans la block RAM du FPGA, saturée par la RAM cartouche du cœur), j'ai détourné les 128 Ko de SRAM externe inutilisée de la Pocket comme buffer. Puis, parce que faire défiler chaque photo à la main était pénible, j'ai ressuscité le bus-master que j'avais abandonné — et cette fois, ayant enfin <em>vu</em> sa vraie sortie, je l'ai fait marcher en un bouton.</p>
-      <details class="dive"><summary>N'inventez pas d'horloge pour le bus d'un autre<span class="lbl">deep dive</span></summary><div class="dive-body">
-        <p>Le bus-master lit la cartouche en pilotant lui-même les lignes d'adresse et de banque pendant que la Game Boy est en pause. Ma première version échantillonnait la donnée à <code>cart_phi_fall</code> — le front descendant de l'horloge PHI de la cartouche, l'endroit évident. Résultat : 94,8 % correct, de vraies données photo, mais l'annuaire relu en <code>00</code> et le checksum faux. Une marge de timing ratée.</p>
-        <p>Le fix : cesser d'inventer un point d'échantillonnage et <em>emprunter celui qui marche déjà</em> : le cœur Game Boy latche les lectures cartouche à son enable d'horloge CPU, <code>ce_cpu</code>. Échantillonner là — au front exact qu'utilise la vraie gb — et l'annuaire est parfait, le checksum colle, l'écho colle. Un bouton, seize banques, sauvegarde valide. (Cette leçon exacte revient une dernière fois, au dernier chapitre — pour un bus que je ne <em>pilotais</em> même pas.)</p>
-      </div></details>
-      <p>Fin juin, le dump était solide — puis c'est devenu beau. L'intuition, quand elle est venue, avait l'air d'un cadeau : <em>les save states écrivent déjà sur la SD en plein jeu et reprennent sans accroc. Arrête de te battre contre la pause. Utilise ce qui pause déjà proprement.</em> Le save-state natif de la Pocket fige la Game Boy à un point sûr, sérialise sa mémoire et reprend. J'ai fait deux changements pour qu'il capture les <em>photos</em> (le capteur les écrit dans la cartouche hors du bus CPU, si bien que le miroir natif ne les voit jamais), et soudain le dump tenait en un seul appui qui n'interrompait rien. MugDump, mon décodeur compagnon, a appris à lire le fichier <code>.sta</code> directement. La moitié « terrain » du rêve fonctionnait : photographier, save-state, continuer, décoder à la maison.</p>
-      <p>Tout marchait sauf la seule chose dont le projet portait le nom. La caméra s'arrêtait toujours à trente.</p>
-    </section>
-
-    <section class="chapter">
-      <div class="chapter-head"><p class="chapter-label">Chapitre IV</p><h2>Patcher une ROM que personne n'avait désassemblée</h2></div>
-      <p class="drop">J'avais passé un mois à bâtir une machine capable de dumper les photos à l'infini et de recycler les emplacements sans faute — et elle était bloquée par un programme de 1998 qui comptait jusqu'à trente et disait non.</p>
-      <p>Mon premier réflexe fut d'aller dans la sauvegarde libérer un emplacement. Mais le piège du prologue était absolu — éditez la sauvegarde de l'extérieur et la cartouche se suicide au redémarrage. La rétro-ingénierie de la communauté le confirmait : forger un emplacement libre rate le checksum ou perd le <code>"Magic"</code>, et toute la pellicule est effacée. Éditer la RAM est une impasse par conception.</p>
-      <p>La prise de conscience, quand elle est venue, a tout recadré : <strong>le capteur n'a jamais été le problème.</strong> Les photos marchaient déjà. Le seul obstacle était un bout de <em>logiciel</em> — la logique « pellicule pleine » de la ROM — et le logiciel, ça se patche. Pas en reflashant la cartouche (je refusais d'ouvrir ou de modifier le matériel physique), mais en interceptant les lectures ROM qui traversent déjà mon cœur FPGA et en <em>substituant d'autres octets à quelques adresses précises.</em> Le même tour que l'espionnage des sélections de banque, pointé sur une nouvelle cible : réécrire le programme à mesure que la Game Boy le lit.</p>
-      <p>Un obstacle à ce plan : pour patcher la routine « pellicule pleine », il fallait la <em>trouver</em>. Et elle n'avait jamais été trouvée.</p>
-      <details class="dive"><summary>Désassembler le Game Boy Camera, parce que personne ne l'avait fait<span class="lbl">deep dive</span></summary><div class="dive-body">
-        <p>J'ai lancé une recherche profonde et large — des dizaines d'agents en parallèle à travers les communautés homebrew, ROM-hacking et préservation — pour un désassemblage de la logique de gestion photo de la caméra. Il n'y en a pas. Il y a des désassemblages des <em>minijeux</em>, des outils qui <em>lisent</em> le save, des projets qui <em>remplacent</em> toute la ROM (le <code>gb-photo</code> d'untoxa), mais personne n'avait publié la logique « la pellicule est-elle pleine, et où est un emplacement libre » du firmware commercial. J'ai donc écrit un petit désassembleur LR35902 et l'ai fait moi-même, contre les ROM US (« GAMEBOYCAMERA ») et japonaise (« POCKETCAMERA V1.1 »).</p>
-        <p>Toute la gestion photo vit dans la <strong>banque ROM <code>$02</code></strong>, à des offsets <em>identiques</em> entre US et JP — signe fort de routines canoniques. <code>02:444D</code> est la boucle « scanne la pellicule » partagée : appelée avec <code>A = $FF</code>, elle trouve un emplacement <em>libre</em> ; appelée avec un numéro, elle trouve <em>cette photo</em>. Elle est générique — ce qui rend son patch direct dangereux. Et les routines de checksum en <code>02:431F</code>/<code>432F</code> sont recalculées par le propre chemin de commit de la ROM — donc un patch d'octet qui passe par le flux d'écriture normal obtient un checksum <em>correct</em> gratuitement, <strong>sans suicide.</strong> Cette faille est ce qui rend toute l'approche survivable.</p>
-      </div></details>
-      <p>Trouver la routine était le début, pas la fin. Ont suivi quatre itérations matérielles, chacune prouvant mon modèle de la ROM légèrement faux et m'enseignant la couche suivante.</p>
-      <p>Le premier patch neutralisait le refus « plein » aux trois sites d'écriture de photo. Résultat : le trente-et-unième tir affichait <strong>« no blank frame »</strong> et s'arrêtait quand même. Il y avait donc un garde <em>en amont</em> des sites d'écriture. Le deuxième patch visait le scan partagé <code>02:444D</code>. Résultat : <em>aucun changement</em> — ce qui était l'indice. Si patcher le scan ne changeait rien, le garde ne consultait pas le scan.</p>
-      <p>Puis l'observation qui a tout craqué : effacez la photo n°1 sur la caméra et la n°2 devient la n°1. La pellicule <em>se renumérote</em>. Ce n'est pas un scan. C'est un <strong>compteur.</strong></p>
-      <details class="dive"><summary>Ce n'était jamais un scan. C'était un compteur en $D561.<span class="lbl">deep dive</span></summary><div class="dive-body">
-        <p>Après chaque opération, la ROM exécute <code>02:4466</code> : elle recharge l'annuaire en RAM de travail à <code>$D563</code>, <strong>renumérote et compacte</strong> (la « pellicule glissante » que je voyais quand les suppressions renumérotaient), puis compte les emplacements occupés :</p>
-        <pre><span class="cm">02:4499</span>   LD BC,$1E00        <span class="cm">; B = 30 (boucle), C = 0 (compte)</span>
-          ... boucle 30x ... <span class="cm">; LD A,(HL+); CP $FF; INC C si occupe</span>
-<span class="cm">02:44A9</span>   LD ($D561),A       <span class="cm">; le SEUL ecrivain de $D561</span></pre>
-        <p>Chaque garde « pellicule pleine » de toute la ROM — banques 4, 6, 7 et préambules des sites d'écriture — est les trois mêmes instructions : <code>LD A,($D561); CP $1E; saut-si-pas-inferieur &rarr; plein</code>. Elles lisent toutes un octet. Il y avait un vrai point d'étranglement, et ce n'était pas un scan.</p>
-        <p>Le fix tient en un octet. Plafonner la boucle de comptage à 29 au lieu de 30 — offset <code>$049B</code>, <code>1E</code> &rarr; <code>1D</code>. Désormais <code>$D561</code> n'atteint jamais 30, tous les gardes passent, la caméra ne refuse jamais. Sur le matériel, le tir n°31 ne disait plus « no blank frame ». <strong>La pellicule était infinie.</strong></p>
-        <p>Mais plafonner à 29 écrase toujours le même emplacement. Pour une <em>vraie</em> pellicule — recycler le plus ancien d'abord, 0&rarr;29&rarr;0 — j'ai redirigé la recherche d'emplacement libre vers une routine injectée dans l'espace libre à <code>$7AB5</code> (1 355 octets <code>$00</code> inutilisés en banque <code>$02</code>, communs aux deux ROM). Elle renvoie l'emplacement de la photo la <em>plus ancienne</em> ; comme <code>02:4466</code> renumérote après chaque tir, le « numéro 0 » tourne sur les emplacements physiques, et les écritures parcourent les trente. Elle teste <code>A</code> d'abord pour que <em>seule</em> la recherche d'emplacement libre (<code>A=$FF</code>) soit détournée — une recherche par numéro renvoie toujours l'honnête « non trouvé » de la ROM (détourner <em>celles-là</em> corrompt l'état et plante, une leçon d'un crash de save-state ultérieur).</p>
-      </div></details>
-      <figure class="reveal"><svg class="fig" viewBox="0 0 600 370" role="img" aria-label="Un anneau de 30 emplacements ; chaque tir au-delà de trente écrase le plus ancien, cyclant de 0 à 29"><use href="#fig-ring"/></svg><figcaption>La pellicule rendue cyclique : chaque tir au-delà de trente recycle le <b>plus ancien</b> emplacement, si bien qu'elle ne se remplit jamais — et une pellicule qui ne se remplit jamais ne refuse jamais.</figcaption></figure>
-      <p>Le 30 juin, j'ai photographié au-delà de trente dans un album vide, et les photos atterrissaient sur des emplacements <em>différents</em> — 30, puis 29, puis 28, arrivant par le bout et tournant. La pellicule cyclait. Trente emplacements physiques, sans cesse rafraîchis, gardant toujours les trente photos les plus récentes. <strong>La pellicule était infinie, par logiciel seul, la cartouche et son capteur totalement intacts.</strong> Le problème « remettre la pellicule à zéro » — la seule question ouverte qui hantait chaque document de conception — n'était pas résolu. Il était <em>supprimé.</em> On ne remet jamais à zéro une pellicule qui se recycle toute seule.</p>
-      <p>Le rêve, sur le papier, était complet. Restait une verrue, tapie dans la fonctionnalité sur laquelle je m'étais le plus appuyé.</p>
-    </section>
-
-    <section class="chapter">
-      <div class="chapter-head"><p class="chapter-label">Chapitre V</p><h2>Coupé en deux</h2></div>
-      <p class="drop">Chaque fois que je déclenchais un save-state pour dumper les photos, l'écran glitchait, revenait environ une milliseconde, <strong>se coupait en deux</strong>, et gelait. Il fallait quitter et relancer le cœur pour continuer. Le dump lui-même allait bien — le <code>.sta</code> était écrit et valide avant le gel — mais la <em>reprise</em> était cassée. Lot après lot, je relançais à la main.</p>
-      <p>J'aurais pu livrer comme ça. Ça marchait ; c'était juste laid. Mais « coupé en deux, puis gel » est un symptôme trop précis pour le laisser courir. Le dernier chapitre de ce projet est donc une histoire de débogage sans débogueur — car je n'ai jamais ouvert la Pocket, jamais branché de sonde, et travaillé entièrement depuis les fichiers de log de l'appareil et les sources du cœur.</p>
-      <p>D'abord j'ai prouvé ce que ce n'<em>était pas.</em> Ça arrivait avec mon overlay pellicule-infinie <strong>désactivé</strong> — le cœur en marche était donc octet pour octet le cœur amont d'origine. Ce n'était pas mon patch ROM. Le timing était propre. Ça se reproduisait sur un album fraîchement effacé. Les données de sauvegarde étaient prouvées valides. Quoi que ce fût, c'était dans la <em>reprise de la Game Boy émulée elle-même</em>, et c'était sans doute cassé depuis toujours — je ne l'avais jamais remarqué, parce que je relançais de toute façon.</p>
-      <p>L'expression « coupé en deux » était l'indice. L'interface du Game Boy Camera utilise des effets raster en milieu d'image — elle change les registres de scroll et de fenêtre <em>pendant que l'écran se dessine.</em> Une image qui se coupe à l'horizontale et gèle, c'est un affichage qui a repris à la mauvaise ligne, ou un CPU qui a déraillé en pleine image. Je suis donc entré dans le cœur et j'ai posé la seule question qui comptait : <strong>qu'est-ce qui, exactement, tourne encore pendant une pause de save-state alors qu'il ne le devrait pas ?</strong></p>
-      <details class="dive"><summary>L'horloge de la cartouche physique ne s'est jamais arrêtée<span class="lbl">deep dive</span></summary><div class="dive-body">
-        <p>En mode passthrough physique, le CPU émulé n'est <em>pas</em> mis en attente par la cartouche (<code>cart_wait_n = 1'b1</code>). Une lecture cartouche n'est bien cadencée que parce que deux compteurs, tous deux battant sur la même horloge système, restent en relation de phase fixe : <code>clkdiv</code> dans <code>speedcontrol</code> (le générateur de phase de l'enable CPU <code>ce_cpu</code>), et <code>cart_phi_counter</code> dans <code>core_top</code> (l'horloge PHI de la cartouche physique).</p>
-        <p>Pendant un save-state la Game Boy est en pause : <code>speedcontrol</code> <strong>gèle <code>clkdiv</code></strong>. Mais <code>cart_phi</code> n'était remis à zéro qu'au reset dur ou à un changement de vitesse — <em>jamais à la pause.</em> Donc pendant que la machinerie du save-state passait ses nombreux cycles à sérialiser tout l'état de la console, <strong><code>cart_phi</code> continuait de tourner librement.</strong> À la reprise, <code>clkdiv</code> repartait de sa phase gelée tandis que <code>cart_phi</code> était à une phase arbitraire, dérivée. La première lecture cartouche après reprise latchait une donnée hors phase ; le CPU lisait du garbage, sautait ailleurs, et gelait — et parce qu'il cessait d'écrire les registres scroll/LCDC en pleine image, l'UI raster de la caméra se coupait en deux.</p>
-        <p>Le fix est de geler <code>cart_phi</code> sur <em>exactement</em> les cycles où <code>clkdiv</code> l'est. J'ai exposé l'état interne <code>PAUSED</code> de <code>speedcontrol</code> comme nouvelle sortie <code>pause_active</code> — soigneusement, car la pause a une queue de 15 cycles au relâchement, et geler à quelques cycles près réintroduirait la dérive — et j'ai maintenu <code>cart_phi</code> tant qu'elle est asservie. Erreur résiduelle : environ une horloge système sur trente-deux, ~3 %, confortablement dans la fenêtre de donnée PHI-haut. Et comme <code>speedcontrol</code> ne pause que sans accès cartouche en cours, la gb ne gèle jamais en pleine transaction. <code>cart_phi</code> était le <em>seul</em> signal physique qui dérivait ; gelez-le, et les deux horloges reprennent au pas.</p>
-        <p>C'est la leçon <code>ce_cpu</code> du chapitre III, revenue sous sa forme finale. À l'époque j'avais appris à ne pas inventer d'horloge pour un bus que je <em>pilotais</em>. Ici le bug était l'image miroir : un bus que je ne pilotais <em>pas</em>, dont j'avais simplement oublié d'arrêter l'horloge.</p>
-      </div></details>
-      <figure class="reveal"><svg class="fig" viewBox="0 0 630 200" role="img" aria-label="Deux pistes d'horloge. Sans le fix l'horloge cartouche tourne pendant la pause et reprend désalignée ; avec le fix elle gèle avec l'horloge CPU et reprend alignée"><use href="#fig-phase"/></svg><figcaption>Tout le bug et son fix en une image : garder l'horloge cartouche <b>gelée avec l'horloge CPU</b> à travers la pause, et les deux reprennent au pas.</figcaption></figure>
-      <p>Deux fichiers modifiés. Un nouveau signal exposé depuis le contrôleur de vitesse ; une poignée de lignes pour geler l'horloge cartouche avec l'horloge CPU. J'ai compilé, inversé bit à bit, copié sur la SD, flashé, pris quelques photos, et appuyé <strong>Analogue + Haut</strong>.</p>
-      <p>L'écran a plongé, et est revenu. Entier. Pas de coupure. Pas de gel.</p>
-      <p class="kicker">J'ai continué à photographier.</p>
-    </section>
-
-    <section class="chapter">
-      <div class="strip" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-      <div class="chapter-head"><p class="chapter-label">Épilogue</p><h2>Infini</h2></div>
-      <p class="lead">Le flux de travail tient désormais en un souffle et ne demande rien d'autre que l'appareil en main : <strong>photographier trente ; save-state — il reprend proprement ; photographier trente de plus, les plus anciens emplacements se recyclent, la caméra ne refuse jamais ; save-state à nouveau ; décoder à la maison avec MugDump.</strong> Pas de PC sur le terrain. Pas de remise à zéro. Pas de relance. Une cartouche de 1998, son capteur d'origine totalement intact, prenant une pellicule illimitée de photos sur une carte SD, parce que la Game Boy en dessous a été discrètement instruite à mentir.</p>
-      <p>Je tiens à être honnête sur ce que ce fut, car c'est la partie qui mérite d'être gardée. Ce ne fut pas une marche propre. Ce fut un format de sauvegarde qu'il a fallu soumettre par la méfiance, trois jours perdus pour un seul chiffre hexa, quatre itérations matérielles pour apprendre qu'un « scan » était un « compteur », une ROM que j'ai dû désassembler parce que le monde ne l'avait pas fait, et un gel final débogué avec pour seuls outils des fichiers de log et une théorie sur une horloge. Chaque vraie percée est venue de la même façon : quand tout échouait <em>à l'identique</em>, je regardais au mauvais endroit ; quand j'étais invité sur du matériel, j'empruntais le timing qu'il utilisait déjà au lieu d'inventer le mien. Ces deux idées, encore et encore, sont la colonne vertébrale d'ingénierie de ce projet.</p>
-      <p>La pellicule infinie est la première brique. J'en vois une seconde d'ici — une ROM homebrew « appareil photo pur », tournant sur ce même cœur, tout en viseur et exposition, sans rien du fatras de minijeux de 1998. Mais c'est une autre histoire, et celle-ci est finie. La pellicule ne se termine plus.</p>
-      <p class="end-line">Trente, pour toujours.</p>
-    </section>
-
-  </article>
-
 </main>
 
 <footer>
   <div class="foot">
-    <h2><span data-lang="en">The trail, if you want to walk it</span><span data-lang="fr">Le sentier, si vous voulez le suivre</span></h2>
+    <h2>The trail, if you want to walk it</h2>
     <ul class="trail">
-      <li><a href="https://github.com/Guillain-RDCDE/PocketRoll/blob/master/pocketroll/docs/01-game-boy-camera-sram-format.md"><span class="num">01</span><span data-lang="en">SRAM save format</span><span data-lang="fr">Format de sauvegarde SRAM</span> <span class="desc"><span data-lang="en">— reverse-engineered and ground-truthed.</span><span data-lang="fr">— rétro-conçu et validé terrain.</span></span></a></li>
-      <li><a href="https://github.com/Guillain-RDCDE/PocketRoll/blob/master/pocketroll/docs/06-build-and-debug-war-story.md"><span class="num">06</span><span data-lang="en">Build &amp; debug war story</span><span data-lang="fr">Récit de guerre build &amp; debug</span> <span class="desc"><span data-lang="en">— white screens, isgbc, Quartus versions.</span><span data-lang="fr">— écrans blancs, isgbc, versions de Quartus.</span></span></a></li>
-      <li><a href="https://github.com/Guillain-RDCDE/PocketRoll/blob/master/pocketroll/docs/07-the-dump-saga.md"><span class="num">07</span><span data-lang="en">The dump saga</span><span data-lang="fr">La saga du dump</span> <span class="desc"><span data-lang="en">— dead ends, the 0xAA witness, the one-digit bug.</span><span data-lang="fr">— impasses, le témoin 0xAA, le bug d'un chiffre.</span></span></a></li>
-      <li><a href="https://github.com/Guillain-RDCDE/PocketRoll/blob/master/pocketroll/docs/11-rom-disasm-overwrite.md"><span class="num">11</span><span data-lang="en">ROM disassembly &amp; overwrite overlay</span><span data-lang="fr">Désassemblage ROM &amp; overlay d'écrasement</span> <span class="desc"><span data-lang="en">— the home-grown disassembly, bank $02.</span><span data-lang="fr">— le désassemblage maison, banque $02.</span></span></a></li>
-      <li><a href="https://github.com/Guillain-RDCDE/PocketRoll/blob/master/pocketroll/docs/12-savestate-resume-handoff.md"><span class="num">12</span><span data-lang="en">Save-state resume fix</span><span data-lang="fr">Fix de reprise du save-state</span> <span class="desc"><span data-lang="en">— the physical-cart PHI desync and its fix.</span><span data-lang="fr">— la désync PHI cartouche physique et son fix.</span></span></a></li>
+      <li><a href="https://github.com/Guillain-RDCDE/PocketRoll/blob/master/pocketroll/docs/01-game-boy-camera-sram-format.md"><span class="num">01</span>SRAM save format <span class="desc">— reverse-engineered and ground-truthed.</span></a></li>
+      <li><a href="https://github.com/Guillain-RDCDE/PocketRoll/blob/master/pocketroll/docs/06-build-and-debug-war-story.md"><span class="num">06</span>Build &amp; debug war story <span class="desc">— white screens, isgbc, Quartus versions.</span></a></li>
+      <li><a href="https://github.com/Guillain-RDCDE/PocketRoll/blob/master/pocketroll/docs/07-the-dump-saga.md"><span class="num">07</span>The dump saga <span class="desc">— dead ends, the 0xAA witness, the one-digit bug.</span></a></li>
+      <li><a href="https://github.com/Guillain-RDCDE/PocketRoll/blob/master/pocketroll/docs/11-rom-disasm-overwrite.md"><span class="num">11</span>ROM disassembly &amp; overwrite overlay <span class="desc">— the home-grown disassembly, bank $02.</span></a></li>
+      <li><a href="https://github.com/Guillain-RDCDE/PocketRoll/blob/master/pocketroll/docs/12-savestate-resume-handoff.md"><span class="num">12</span>Save-state resume fix <span class="desc">— the physical-cart PHI desync and its fix.</span></a></li>
     </ul>
     <p class="colophon">
-      <span data-lang="en">The core is a fork of budude2's <a href="https://github.com/budude2/openfpga-GBC">openfpga-GBC</a>, which is the reason any of this was possible; the save-format reverse-engineering stands on work by Raphaël Boichot, insideGadgets, and the wider Game Boy Camera preservation community. Photos are read with <a href="https://github.com/Guillain-RDCDE/MugDump">MugDump</a>.<br><br>PocketRoll · <a href="https://github.com/Guillain-RDCDE/PocketRoll">github.com/Guillain-RDCDE/PocketRoll</a></span>
-      <span data-lang="fr">Le cœur est un fork du <a href="https://github.com/budude2/openfpga-GBC">openfpga-GBC</a> de budude2, sans lequel rien de tout ceci n'aurait été possible ; la rétro-ingénierie du format de sauvegarde s'appuie sur les travaux de Raphaël Boichot, insideGadgets, et la communauté de préservation du Game Boy Camera au sens large. Les photos se lisent avec <a href="https://github.com/Guillain-RDCDE/MugDump">MugDump</a>.<br><br>PocketRoll · <a href="https://github.com/Guillain-RDCDE/PocketRoll">github.com/Guillain-RDCDE/PocketRoll</a></span>
+      The core is a fork of budude2's <a href="https://github.com/budude2/openfpga-GBC">openfpga-GBC</a>, which is the reason any of this was possible; the save-format reverse-engineering stands on work by Raphaël Boichot, insideGadgets, and the wider Game Boy Camera preservation community. Photos are read with <a href="https://github.com/Guillain-RDCDE/MugDump">MugDump</a>.<br><br>PocketRoll · <a href="https://github.com/Guillain-RDCDE/PocketRoll">github.com/Guillain-RDCDE/PocketRoll</a>
     </p>
   </div>
 </footer>
@@ -655,22 +511,6 @@
 
 <script>
 (function(){
-  var root=document.documentElement;
-  var enBtn=document.getElementById('btn-en'), frBtn=document.getElementById('btn-fr');
-  function setLang(l){
-    root.classList.toggle('lang-fr', l==='fr');
-    root.classList.toggle('lang-en', l==='en');
-    root.setAttribute('lang', l);
-    enBtn.setAttribute('aria-pressed', String(l==='en'));
-    frBtn.setAttribute('aria-pressed', String(l==='fr'));
-    try{ localStorage.setItem('pr-lang', l); }catch(e){}
-  }
-  enBtn.addEventListener('click', function(){ setLang('en'); });
-  frBtn.addEventListener('click', function(){ setLang('fr'); });
-  var saved; try{ saved=localStorage.getItem('pr-lang'); }catch(e){}
-  if(!saved){ saved = (navigator.language||'en').toLowerCase().indexOf('fr')===0 ? 'fr':'en'; }
-  setLang(saved==='fr'?'fr':'en');
-
   // reading progress
   var bar=document.getElementById('progress');
   function onScroll(){

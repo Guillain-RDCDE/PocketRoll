@@ -16,7 +16,7 @@
 > How a 1998 camera was taught to shoot forever: a save that wipes itself if you cheat, a bug that
 > ate three days and was fixed by one character, and a ROM nobody had ever disassembled. Reads like a
 > novel — unfolds into full schematics.
-> <br>🌐 Illustrated web version (EN/FR) · also as plain text: [English](STORY.md) · [Français](STORY.fr.md)
+> <br>🌐 Illustrated web version · also as [plain-text Markdown](STORY.md).
 
 ---
 

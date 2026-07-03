@@ -7,7 +7,7 @@ format that erases itself if you cheat, a chip that boots to a white screen for 
 turn out to be the wrong version of a compiler, a bug that cost three days and was fixed by
 changing one character, and a ROM that nobody on Earth had ever disassembled.*
 
-> 🇫🇷 **Cette histoire existe aussi en français** → [STORY.fr.md](STORY.fr.md) · 🌐 **Illustrated web version (EN/FR)** → [read it on GitHub Pages](https://guillain-rdcde.github.io/PocketRoll/)
+> 🌐 **Illustrated web version** → [read it on GitHub Pages](https://guillain-rdcde.github.io/PocketRoll/)
 
 > **How to read this.** The narrative runs straight through — you can read the whole thing
 > and never touch a hex address. But every time the story hits something worth seeing up
