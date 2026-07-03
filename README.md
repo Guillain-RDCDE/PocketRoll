@@ -23,14 +23,19 @@ The Game Boy Camera, in 1998, could hold thirty photos — thirty, *total*, fore
 some to make room. PocketRoll lifts that limit on the Analogue Pocket, using nothing but the console,
 the original cartridge, and an SD card.
 
+> ## &nbsp;An Infinite Roll — the making-of
+>
+> A save format that erases itself if you cheat. A bug that cost three days and was fixed by one
+> character. A ROM nobody had ever disassembled. A screen that split in two. The full story of how a
+> 1998 camera was taught to shoot forever — written as a long read that flows like a novel and
+> unfolds, at a click, into the actual bytes, the Verilog and the disassembly.
+>
+> ### &nbsp;[Read the making-of&nbsp;→](https://guillain-rdcde.github.io/PocketRoll/)
+
 Every photo you take with the **real cartridge** — its real sensor, passed live through a custom
 openFPGA core — is archived to the SD card and its slot recycled, so the camera never runs out. The
 result is an unlimited roll, developed at home with [MugDump](https://github.com/Guillain-RDCDE/MugDump).
 No cables, no PC, no modification to the 1998 hardware.
-
-The full story of how this was done — a save format that erases itself if you cheat, a bug that cost
-three days, a ROM nobody had ever disassembled — is written as a long read:
-**[An Infinite Roll](https://guillain-rdcde.github.io/PocketRoll/)**.
 
 ## How it works
 
