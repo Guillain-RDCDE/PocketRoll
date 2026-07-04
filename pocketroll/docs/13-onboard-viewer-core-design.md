@@ -169,6 +169,11 @@ ROMs. Guillain builds/flashes; the assistant designs, writes HDL, and does rever
 
 ---
 
-**Status: design only.** Next concrete step is the **scaffold** (option A) and milestone 1. This is a
-multi-iteration hardware project — it will not be "done tonight," but v1 (view a roll on the Pocket,
-no PC) is a confident, well-scoped target.
+**Status: scaffold started — decode heart written and simulation-verified.** See
+[`../viewer/`](../viewer/): `gbcam_photo_decode.v` (slot → 128×112 framebuffer) and `gbcam_sta_locate.v`
+(Magic-pair base scan) are implemented and pass Icarus testbenches against vectors from a reference
+model — which is itself cross-checked **pixel-for-pixel against MugDump's `gbcam.js` on a real `.sta`**.
+So the bug-prone algorithm (§2/§3) is proven. Still to write in the **hardware phase** (Guillain's
+build/flash loop): `video_gen.v`, the budude2-derived `core_top.sv` wrapper, and the packaging — i.e.
+milestone 1 onward. v1 (view a roll on the Pocket, no PC) stays a confident, well-scoped target; it
+will not be "done tonight," but its riskiest logic is now tested.
