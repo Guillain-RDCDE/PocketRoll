@@ -11,6 +11,9 @@ Quartus → reverse → flash loop and can only be validated on a real Analogue 
 |---|---|---|
 | [`rtl/gbcam_photo_decode.v`](rtl/gbcam_photo_decode.v) | decode one photo slot → 128×112 2bpp framebuffer | ✅ simulated |
 | [`rtl/gbcam_sta_locate.v`](rtl/gbcam_sta_locate.v) | find the cart-RAM base inside a `.sta` (Magic-pair scan) | ✅ simulated |
+| [`rtl/video_gen.v`](rtl/video_gen.v) | raster the framebuffer → openFPGA video (rgb/de/hs/vs), 2bpp→palette | ✅ simulated |
+| [`rtl/framebuffer.v`](rtl/framebuffer.v) | 14336×2 dual-port store (decode writes, video reads) | ✅ elaborated |
+| [`rtl/viewer_top.sv`](rtl/viewer_top.sv) | logic core: load → locate → summary → decode → video, D-pad nav | ⚙️ elaboration-checked skeleton |
 | [`sim/viewer_model.js`](sim/viewer_model.js) | reference model + test-vector generator | ✅ |
 | `sim/tb_*.v` | Icarus testbenches | ✅ |
 
@@ -23,6 +26,9 @@ Quartus → reverse → flash loop and can only be validated on a real Analogue 
 3. The testbenches run the Verilog against those vectors: `gbcam_photo_decode`
    reproduces the framebuffer byte-for-byte; `gbcam_sta_locate` finds the right base
    for both a `.sta` (base `0x466C`) and a raw 128 KB `.sav` (base `0`).
+4. `video_gen` is checked pixel-by-pixel over two frames against an independent
+   reference raster (sync timing, active-window count, image placement, 2bpp→palette
+   mapping, blanking). `viewer_top` (the whole pipeline wired together) elaborates.
 
 Run it:
 ```sh
@@ -32,13 +38,17 @@ bash sim/run.sh      # needs node + iverilog (scoop) on PATH
 
 ## Not here yet (hardware phase, Guillain's build loop)
 
-- `video_gen.v` — raster over the framebuffer: openFPGA video (`video_rgb/de/hs/vs`),
-  integer-scale + centre the 128×112 image, 2bpp → palette, `photo N/M` overlay.
-- `core_top.sv` — a budude2-derived APF wrapper with the Game Boy removed, wiring
-  **dataslot load → `sta_locate` → `photo_decode` → framebuffer → `video_gen`**, plus
-  D-pad ◀ ▶ to change photo. (Option A in doc 13 §6: reuse budude2's proven APF/video/
-  PLL plumbing.)
-- `pkg/.../{core.json,data.json,video.json}` — one user-selectable savestate slot.
+- `core_top.sv` — a budude2-derived APF wrapper with the Game Boy removed, that (a) has
+  the host load the picked `.sta` into a buffer via an APF dataslot, (b) drives the PLLs
+  and the pixel clock, (c) edge-detects the D-pad into `key_next`/`key_prev`, and (d)
+  instantiates **`viewer_top`** and routes its `video_*` to the Pocket outputs. The logic
+  pipeline (`viewer_top`) is already written and wired; this is the APF/clock/input glue
+  (Option A in doc 13 §6: reuse budude2's proven plumbing).
+- `pkg/.../{core.json,data.json,video.json}` — one user-selectable savestate slot + the
+  video mode matching `video_gen`'s H/V totals.
+- **Real memory latency:** the unit sims use an async read; on a registered BRAM/SDRAM,
+  add one wait cycle in the read states of `photo_decode`/`sta_locate` and one pipeline
+  stage in `video_gen` (the FSMs are staged to slot it in).
 
 ## Notes for the hardware wiring
 

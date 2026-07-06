@@ -173,7 +173,10 @@ ROMs. Guillain builds/flashes; the assistant designs, writes HDL, and does rever
 [`../viewer/`](../viewer/): `gbcam_photo_decode.v` (slot → 128×112 framebuffer) and `gbcam_sta_locate.v`
 (Magic-pair base scan) are implemented and pass Icarus testbenches against vectors from a reference
 model — which is itself cross-checked **pixel-for-pixel against MugDump's `gbcam.js` on a real `.sta`**.
-So the bug-prone algorithm (§2/§3) is proven. Still to write in the **hardware phase** (Guillain's
-build/flash loop): `video_gen.v`, the budude2-derived `core_top.sv` wrapper, and the packaging — i.e.
-milestone 1 onward. v1 (view a roll on the Pocket, no PC) stays a confident, well-scoped target; it
-will not be "done tonight," but its riskiest logic is now tested.
+So the bug-prone algorithm (§2/§3) is proven. `video_gen.v` (raster + palette, §4d) is also written and
+simulation-checked pixel-by-pixel, `framebuffer.v` is in, and `viewer_top.sv` wires the whole logic
+pipeline (load → locate → summary → decode → framebuffer → video, with D-pad nav) and elaborates. Still
+to write in the **hardware phase** (Guillain's build/flash loop): the budude2-derived `core_top.sv`
+wrapper (APF dataslot load + PLLs + D-pad edge-detect around `viewer_top`) and the packaging JSON — i.e.
+milestone 1. v1 (view a roll on the Pocket, no PC) stays a confident, well-scoped target; it will not be
+"done tonight," but its riskiest logic is written and tested in simulation.

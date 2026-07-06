@@ -23,4 +23,13 @@ echo; echo "== gbcam_sta_locate =="
 iverilog -g2012 -o sl.vvp ../rtl/gbcam_sta_locate.v tb_sta_locate.v
 vvp sl.vvp
 
+echo; echo "== video_gen =="
+iverilog -g2012 -o vg.vvp ../rtl/video_gen.v tb_video_gen.v
+vvp vg.vvp
+
+echo; echo "== elaborate viewer_top (integration skeleton, compile-check) =="
+iverilog -g2012 -s viewer_top -o vt.vvp \
+  ../rtl/gbcam_photo_decode.v ../rtl/gbcam_sta_locate.v ../rtl/framebuffer.v \
+  ../rtl/video_gen.v ../rtl/viewer_top.sv && echo "viewer_top: ELABORATE OK"
+
 echo; echo "done."
