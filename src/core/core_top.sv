@@ -887,6 +887,9 @@ logic [22:0] mbc_addr;
 logic cart_a15, cart_rd, cart_wr, cart_oe, cart_wait_n, nCS;
 logic [7:0] cart_di, cart_do;
 logic [16:0] pr_cram_addr; // the gb's cram read address (with bank), from cart_top — for the snoop
+logic        viewer_en;         // PocketRoll Viewer (declared early: used in the cart_top instance above)
+logic [16:0] viewer_cram_addr;
+logic [7:0]  viewer_cram_data;
 
 logic ioctl_wr, dn_write, cart_ready, cram_rd, cram_wr;
 logic [24:0] ioctl_addr;
@@ -1129,6 +1132,10 @@ cart_top cart
   .cram_rd                    ( cram_rd                 ),
   .cram_wr                    ( cram_wr                 ),
   .pr_cram_addr               ( pr_cram_addr            ),
+
+  .viewer_en                  ( viewer_en               ),   // PocketRoll Viewer: read cram
+  .viewer_rd_addr             ( viewer_cram_addr        ),
+  .viewer_rd_data             ( viewer_cram_data        ),
 
   .cart_download              ( cart_download           ),
 
@@ -1485,13 +1492,14 @@ reg de_prev;
 
 wire de = ~(h_blank || v_blank);
 
-// ── PocketRoll Viewer: overlay a decoded photo (from a loaded .sav) onto the LCD ──
-// Gated by run_settings bit 9 ("PocketRoll: Viewer"); zero effect when off. Reuses the
-// GB video timing (h_cnt/v_cnt in the clk_ram domain) and just substitutes pixels.
-wire viewer_en = run_settings_s[9];
-reg  viewer_dl_d;
-always_ff @(posedge clk_sys) viewer_dl_d <= viewer_download;
-wire viewer_load_done = viewer_dl_d & ~viewer_download;     // falling edge = finished loading
+// ── PocketRoll Viewer: overlay a photo decoded from the GB's cart RAM onto the LCD ──
+// Gated by run_settings bit 9 ("PocketRoll: Viewer"); zero effect when off. Decodes from
+// the existing 128 KB cart RAM (cram, port B) — no extra on-chip memory. Reuses the GB
+// video timing (h_cnt/v_cnt, clk_ram domain).
+assign viewer_en = run_settings_s[9];
+reg  viewer_en_d;
+always_ff @(posedge clk_sys) viewer_en_d <= viewer_en;
+wire viewer_refresh = viewer_en & ~viewer_en_d;            // (re)decode when switched on
 reg  vkey_r0, vkey_r1, vkey_l0, vkey_l1;
 always_ff @(posedge clk_sys) begin
   vkey_r0 <= cont1_key_s[3]; vkey_r1 <= vkey_r0;            // D-pad Right = next photo
@@ -1502,20 +1510,18 @@ wire viewer_key_prev = vkey_l0 & ~vkey_l1;
 wire        viewer_ov_active;
 wire [23:0] viewer_ov_rgb;
 viewer_overlay u_viewer (
-  .clk_sys        ( clk_sys          ),
-  .clk_vid        ( clk_ram          ),   // domain of h_cnt/v_cnt
-  .rst            ( reset            ),
-  .viewer_download( viewer_download  ),
-  .ioctl_wr       ( ioctl_wr         ),
-  .ioctl_addr     ( ioctl_addr       ),
-  .ioctl_dout     ( ioctl_dout       ),
-  .load_complete  ( viewer_load_done ),
-  .key_next       ( viewer_key_next  ),
-  .key_prev       ( viewer_key_prev  ),
-  .h_cnt          ( h_cnt            ),
-  .v_cnt          ( v_cnt            ),
-  .ov_active      ( viewer_ov_active ),
-  .ov_rgb         ( viewer_ov_rgb    )
+  .clk_sys  ( clk_sys          ),
+  .clk_vid  ( clk_ram          ),   // domain of h_cnt/v_cnt
+  .rst      ( reset            ),
+  .refresh  ( viewer_refresh   ),
+  .key_next ( viewer_key_next  ),
+  .key_prev ( viewer_key_prev  ),
+  .cram_addr( viewer_cram_addr ),
+  .cram_data( viewer_cram_data ),
+  .h_cnt    ( h_cnt            ),
+  .v_cnt    ( v_cnt            ),
+  .ov_active( viewer_ov_active ),
+  .ov_rgb   ( viewer_ov_rgb    )
 );
 
 always_ff @(posedge clk_vid) begin

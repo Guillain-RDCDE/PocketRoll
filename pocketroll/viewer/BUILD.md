@@ -1,62 +1,56 @@
-# Viewer — first build
+# Viewer — build (iteration 2: decode from cram, no 128 KB buffer)
 
-The photo viewer is grafted into the **existing PocketRoll core** as an optional mode, so
-you compile the normal project (`src/`) — no separate Quartus project. Everything is gated
-behind a core-menu toggle, so with it **off** the core behaves exactly as before.
+The photo viewer is grafted into the **existing PocketRoll core** as an optional mode — you
+compile the normal project (`src/`), same `ap_core.qpf`. Everything is gated behind a
+core-menu toggle, so with it **off** the core behaves exactly as before.
 
-> ⚠️ **This is the FIRST build of the hardware integration.** The logic modules are
-> simulation-verified, but the wiring into budude2's APF/video (the parts I can't compile or
-> flash) has **not** been hardware-tested. Expect to iterate: compile, send me the Quartus
-> log / what you see on screen, I fix, repeat — same loop as PocketRoll itself.
+> **First build (iter 1) failed on M10K overflow** — the 128 KB on-chip file buffer didn't
+> fit (exactly the risk flagged). **Fix (iter 2, this commit):** drop the buffer entirely and
+> **decode straight from the GB core's existing 128 KB cart RAM (`cram`)** — the memory that
+> already holds the camera's photos — via a read port added on cram's port B (used only while
+> viewing, when the save-backup path is idle). **No memory added** beyond the tiny 3.5 KB
+> framebuffer, so it should now fit.
+>
+> ⚠️ Still **not hardware-tested** — the logic elaborates and reuses simulation-verified
+> modules, but this is the build loop: compile → tell me the Fitter result / what's on screen
+> → I fix → repeat.
 
-## What was changed (already committed)
+## What was changed (committed)
 
-- **`src/core/core_top.sv`** — added, all gated by `run_settings_s[9]`:
-  - a `viewer_download` decode for dataslot **id 30** (in the download `case`);
-  - D-pad edge-detect (`cont1_key_s[3]`=next, `[2]`=prev) + a `viewer_load_done` pulse;
-  - a `viewer_overlay` instance (clk_sys + clk_ram, fed by `ioctl_*`, `h_cnt`/`v_cnt`);
-  - the video mux: `video_rgb_reg <= (viewer_en && ov_active) ? ov_rgb : video_rgb_gb;`.
-- **`src/ap_core.qsf`** — added `pocketroll/viewer/rtl/gbcam_photo_decode.v` + `viewer_overlay.sv`.
-- **`pkg/gb/Cores/Guillain-RDCDE.GBCamera/{data.json,interact.json}`** — a "Viewer Save"
-  slot (id 30, `.sav`, `0x10000000`) and a "PocketRoll: Viewer" toggle (id 1008, bit 9).
+- **`src/gb/cart.v`** — a `viewer_en` + `viewer_rd_addr`/`viewer_rd_data` byte-read port that
+  reuses cram's port B (muxed so writes/saves are never disturbed).
+- **`src/core/core_top.sv`** — gated by `run_settings_s[9]`: D-pad edge-detect, a
+  `viewer_overlay` instance reading cram, a `viewer_refresh` on enable, and the video mux
+  `video_rgb_reg <= (viewer_en && ov_active) ? ov_rgb : video_rgb_gb;`. Cart instance wired to
+  the new port.
+- **`pocketroll/viewer/rtl/viewer_overlay.sv`** — no internal buffer now; decodes cram into a
+  14336×2 framebuffer and outputs the overlay pixel. `.qsf` lists it + `gbcam_photo_decode.v`.
+- **packaging** — the "PocketRoll: Viewer" toggle (interact id 1008, bit 9). *(The id-30 data
+  slot from iter 1 is now unused — harmless; the viewer reads cram, not a loaded file.)*
 
-## Build & flash (same recipe as PocketRoll)
+## Build & flash (same as PocketRoll)
 
-1. Quartus **Prime Lite 25.1**, `` `define isgbc 0 `` in `core_top.sv`, Start Compilation.
-2. **Read the Fitter report first** — see risk #1 below (does it fit?).
-3. `node pocketroll/core/reverse_rbf.js src/output_files/ap_core.rbf bitstream.rbf_r`
-   (I do this step + the SD copy — send me the `.rbf`).
-4. Copy `bitstream.rbf_r` → `<SD>\Cores\Guillain-RDCDE.GBCAM\gb.rbf_r`, **and** copy the updated
-   `interact.json` + `data.json` to that same SD folder.
+1. Quartus **Prime Lite 25.1**, `` `define isgbc 0 ``, Start Compilation.
+2. **Check the Fitter first** — does it fit now? (That was the iter-1 blocker.)
+3. `node pocketroll/core/reverse_rbf.js src/output_files/ap_core.rbf bitstream.rbf_r` → I do this
+   + the SD copy; send me the `.rbf`.
+4. Copy the updated `interact.json` to `<SD>\Cores\Guillain-RDCDE.GBCAM\` too.
 
 ## Use it
 
-1. Launch the core with a ROM as usual (the core still needs a cartridge/BIOS to boot).
+1. Launch with the GB Camera cartridge as usual and take some photos (they live in cart RAM).
+   *(Or load a saved roll: put a `.sav` in the normal **Save** slot — it lands in cram too.)*
 2. Core Settings → tick **PocketRoll: Viewer**.
-3. Load a **128 KB `.sav`** into the **Viewer Save** slot (MugDump can export a `.sav` from
-   any `.sta` — v1 takes `.sav`, not `.sta` directly; see risk #6).
-4. The photo appears centred on screen; **D-pad ◀ ▶** steps through the 30 slots.
+3. The current photo appears centred; **D-pad ◀ ▶** steps through the 30 slots.
 
-## Known unknowns — check these at the first build (honest list)
+## Check at this build
 
-1. **BRAM fit (most likely issue).** The viewer adds a 128 KB file BRAM + a 14336×2
-   framebuffer on top of the full GB/SGB core. The Pocket's Cyclone V may not have room.
-   → If the Fitter fails on memory, tell me; options: shrink the buffer, drop SGB, or move
-   the file buffer to SDRAM (reuse the cart download path instead of an on-chip BRAM).
-2. **Slot load path.** The Viewer slot sits at `0x10000000` (the `data_loader`/`ioctl`
-   region) and is distinguished by id 30 → `viewer_download`. If the file doesn't reach the
-   BRAM (blank screen even with a valid `.sav`), the slot address/region or the ioctl gating
-   needs adjusting.
-3. **Video timing / 1-px offset.** The overlay reuses budude2's `h_cnt`/`v_cnt` (clk_ram) and
-   the sync framebuffer read adds ~1 pixel of latency → a possible 1-px horizontal shift.
-   Cosmetic; nudge `IMG_X` in `viewer_overlay.sv` if needed.
-4. **Dual-clock framebuffer.** Written on `clk_sys` (decode), read on `clk_ram` (pixel).
-   Quartus should infer a dual-clock BRAM; watch for timing warnings.
-5. **`clk_ram` vs `clk_vid`.** `h_cnt`/`v_cnt` come from the `video` module clocked on
-   `clk_ram`, so the overlay's pixel side is on `clk_ram`; the output regs are on `clk_vid`
-   (same as the stock path). Verify this holds.
-6. **`.sav` only (v1).** 128 KB cart RAM, base 0, no Magic scan. `.sta` (~234 KB) support =
-   a bigger buffer + the already-tested `gbcam_sta_locate` scan — the next iteration.
+1. **Fit** — should pass now (no 128 KB buffer). If it still overflows, tell me by how much.
+2. **cram port-B sharing** — the viewer read is muxed onto port B (save I/O assumed idle while
+   viewing). If the picture is garbage, this mux or the byte-select is the suspect.
+3. **Framebuffer clk_sys→clk_ram crossing** + the ~1 px overlay offset — cosmetic; nudge `IMG_X`.
+4. **What decodes** — cram holds whatever the cartridge currently has; empty slots → lightest
+   shade. If nothing overlays at all, check `viewer_en`/`h_cnt`/`v_cnt` reach the module.
 
-Milestone 1 (doc 13 §7) is "boots + shows a photo". If the first build fits and boots, we're
-most of the way there; the rest is nudging offsets and the load path.
+If it fits and boots showing *something* centred that changes with the D-pad, the video +
+decode + cram path are proven and we polish from there.

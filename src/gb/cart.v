@@ -29,6 +29,12 @@ module cart_top (
 	output        cram_wr,
 	output [16:0] pr_cram_addr, // PocketRoll: expose the gb's cram read address (with bank) for the snoop
 
+	// PocketRoll Viewer: byte read into cram (128 KB cart RAM) via port B, registered 1-cycle.
+	// Active only when viewer_en (the save-backup path is idle then).
+	input         viewer_en,
+	input  [16:0] viewer_rd_addr,
+	output  [7:0] viewer_rd_data,
+
 	input         cart_download,
 
 	output  [7:0] ram_mask_file,
@@ -431,6 +437,13 @@ assign ram_mask_file =              // 0 - no ram
 assign has_save = mbc_battery && (cart_ram_size > 0 || mbc2 || mbc7 || tama);
 
 // Up to 8kb * 16banks of Cart Ram (128kb)
+// PocketRoll Viewer: hijack cram port B for byte reads while viewing (save I/O idle then).
+// Writes (bk_wr) always keep bk_addr so the save-load path is never disturbed.
+wire [15:0] portb_addr = (viewer_en & ~bk_wr) ? viewer_rd_addr[16:1] : bk_addr[15:0];
+reg  viewer_rd_hi;
+always @(posedge clk_sys) viewer_rd_hi <= viewer_rd_addr[0]; // 1-cycle to align with q_b
+assign viewer_rd_data = viewer_rd_hi ? bk_q[15:8] : bk_q[7:0];
+
 dpram #(16) cram_l (
 	.clock_a (clk_sys),
 	.address_a (cram_addr[16:1]),
@@ -439,7 +452,7 @@ dpram #(16) cram_l (
 	.q_a (cram_q_l),
 
 	.clock_b (clk_sys),
-	.address_b (bk_addr[15:0]),
+	.address_b (portb_addr),
 	.wren_b (bk_wr),
 	.data_b (bk_data[7:0]),
 	.q_b (bk_q[7:0])
@@ -453,7 +466,7 @@ dpram #(16) cram_h (
 	.q_a (cram_q_h),
 
 	.clock_b (clk_sys),
-	.address_b (bk_addr[15:0]),
+	.address_b (portb_addr),
 	.wren_b (bk_wr),
 	.data_b (bk_data[15:8]),
 	.q_b (bk_q[15:8])
