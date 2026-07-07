@@ -6,7 +6,8 @@ module tb_sta_locate;
 
   reg  [7:0] mem [0:262143];
   wire [AW-1:0] maddr;
-  wire [7:0]    mdata = mem[maddr];   // async read
+  reg  [7:0]    mdata;
+  always @(posedge clk) mdata <= mem[maddr];   // registered 1-cycle read (real BRAM/SDRAM)
   reg           start = 0, rst = 1;
   reg  [AW-1:0] len;
   wire [AW-1:0] base;

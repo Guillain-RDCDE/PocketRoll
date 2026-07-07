@@ -175,8 +175,9 @@ ROMs. Guillain builds/flashes; the assistant designs, writes HDL, and does rever
 model — which is itself cross-checked **pixel-for-pixel against MugDump's `gbcam.js` on a real `.sta`**.
 So the bug-prone algorithm (§2/§3) is proven. `video_gen.v` (raster + palette, §4d) is also written and
 simulation-checked pixel-by-pixel, `framebuffer.v` is in, and `viewer_top.sv` wires the whole logic
-pipeline (load → locate → summary → decode → framebuffer → video, with D-pad nav) and elaborates. Still
-to write in the **hardware phase** (Guillain's build/flash loop): the budude2-derived `core_top.sv`
-wrapper (APF dataslot load + PLLs + D-pad edge-detect around `viewer_top`) and the packaging JSON — i.e.
-milestone 1. v1 (view a roll on the Pocket, no PC) stays a confident, well-scoped target; it will not be
-"done tonight," but its riskiest logic is written and tested in simulation.
+pipeline (load → locate → summary → decode → framebuffer → video, with D-pad nav) and elaborates. **The integration is now wired for a first build** — instead of a fresh `core_top`, the viewer is grafted
+into the existing PocketRoll core as an optional, toggle-gated mode (`viewer_overlay.sv` reuses budude2's
+clocks/video/dataslot/D-pad and overlays the photo on the LCD). The `core_top.sv`/`.qsf`/packaging edits are
+committed; `photo_decode`/`sta_locate` were reworked for registered BRAM reads. See
+[`../viewer/BUILD.md`](../viewer/BUILD.md) for the compile recipe and the honest "check at first build" list
+(BRAM fit is the main risk). Nothing here is hardware-tested yet — that's milestone 1 of the build/flash loop.

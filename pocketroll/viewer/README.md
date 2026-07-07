@@ -36,19 +36,21 @@ bash sim/run.sh      # needs node + iverilog (scoop) on PATH
 # => *** MODEL PASS ***  /  *** PHOTO_DECODE PASS ***  /  *** STA_LOCATE PASS ***
 ```
 
-## Not here yet (hardware phase, Guillain's build loop)
+## Integrated — ready for the first Quartus build → see [`BUILD.md`](BUILD.md)
 
-- `core_top.sv` — a budude2-derived APF wrapper with the Game Boy removed, that (a) has
-  the host load the picked `.sta` into a buffer via an APF dataslot, (b) drives the PLLs
-  and the pixel clock, (c) edge-detects the D-pad into `key_next`/`key_prev`, and (d)
-  instantiates **`viewer_top`** and routes its `video_*` to the Pocket outputs. The logic
-  pipeline (`viewer_top`) is already written and wired; this is the APF/clock/input glue
-  (Option A in doc 13 §6: reuse budude2's proven plumbing).
-- `pkg/.../{core.json,data.json,video.json}` — one user-selectable savestate slot + the
-  video mode matching `video_gen`'s H/V totals.
-- **Real memory latency:** the unit sims use an async read; on a registered BRAM/SDRAM,
-  add one wait cycle in the read states of `photo_decode`/`sta_locate` and one pipeline
-  stage in `video_gen` (the FSMs are staged to slot it in).
+Rather than a fresh `core_top`, the viewer is grafted into the **existing PocketRoll core**
+as an optional mode (Option A, doc 13 §6): [`rtl/viewer_overlay.sv`](rtl/viewer_overlay.sv)
+reuses budude2's clocks, video timing (`h_cnt`/`v_cnt`), the APF dataslot download, and the
+D-pad, and overlays the decoded photo onto the LCD output — all gated behind a
+**"PocketRoll: Viewer"** core-menu toggle (bit 9). The `core_top.sv`/`.qsf`/packaging edits
+are committed; `photo_decode`/`sta_locate` now use **registered (real-BRAM) reads**.
+
+**`BUILD.md` has the recipe + the honest "check at first build" list** (BRAM fit is the main
+risk). This integration is written and elaborates, but is **not hardware-tested** — that's the
+build/flash loop.
+
+`rtl/video_gen.v` + `rtl/viewer_top.sv` remain as a standalone raster/pipeline reference (the
+overlay path reuses budude2's video instead, so they're not on the build path).
 
 ## Notes for the hardware wiring
 

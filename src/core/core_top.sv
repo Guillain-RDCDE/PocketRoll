@@ -892,6 +892,7 @@ logic ioctl_wr, dn_write, cart_ready, cram_rd, cram_wr;
 logic [24:0] ioctl_addr;
 logic [15:0] ioctl_dout;
 logic boot_download, cart_download, palette_download, sgb_border_download, cgb_boot_download, dmg_boot_download, sgb_boot_download;
+logic viewer_download;   // PocketRoll Viewer
 logic cart_physical_mode, rumble_cart_wr, rumble_cart_rumble;
 logic cart_oe_backend, cart_phi, cart_speed_prev;
 logic [7:0] cart_do_backend;
@@ -904,6 +905,7 @@ always_comb begin
   cgb_boot_download   = 0;
   dmg_boot_download   = 0;
   sgb_boot_download   = 0;
+  viewer_download     = 0;   // PocketRoll Viewer: savestate/.sav slot (id 30)
 
   if(ioctl_download) begin
     case (dataslot_requestwrite_id)
@@ -913,6 +915,7 @@ always_comb begin
       4: begin cgb_boot_download    = 1'b1; end
       5: begin dmg_boot_download    = 1'b1; end
       6: begin sgb_boot_download    = 1'b1; end
+     30: begin viewer_download      = 1'b1; end
     endcase
   end
 
@@ -1482,6 +1485,39 @@ reg de_prev;
 
 wire de = ~(h_blank || v_blank);
 
+// ── PocketRoll Viewer: overlay a decoded photo (from a loaded .sav) onto the LCD ──
+// Gated by run_settings bit 9 ("PocketRoll: Viewer"); zero effect when off. Reuses the
+// GB video timing (h_cnt/v_cnt in the clk_ram domain) and just substitutes pixels.
+wire viewer_en = run_settings_s[9];
+reg  viewer_dl_d;
+always_ff @(posedge clk_sys) viewer_dl_d <= viewer_download;
+wire viewer_load_done = viewer_dl_d & ~viewer_download;     // falling edge = finished loading
+reg  vkey_r0, vkey_r1, vkey_l0, vkey_l1;
+always_ff @(posedge clk_sys) begin
+  vkey_r0 <= cont1_key_s[3]; vkey_r1 <= vkey_r0;            // D-pad Right = next photo
+  vkey_l0 <= cont1_key_s[2]; vkey_l1 <= vkey_l0;            // D-pad Left  = prev photo
+end
+wire viewer_key_next = vkey_r0 & ~vkey_r1;
+wire viewer_key_prev = vkey_l0 & ~vkey_l1;
+wire        viewer_ov_active;
+wire [23:0] viewer_ov_rgb;
+viewer_overlay u_viewer (
+  .clk_sys        ( clk_sys          ),
+  .clk_vid        ( clk_ram          ),   // domain of h_cnt/v_cnt
+  .rst            ( reset            ),
+  .viewer_download( viewer_download  ),
+  .ioctl_wr       ( ioctl_wr         ),
+  .ioctl_addr     ( ioctl_addr       ),
+  .ioctl_dout     ( ioctl_dout       ),
+  .load_complete  ( viewer_load_done ),
+  .key_next       ( viewer_key_next  ),
+  .key_prev       ( viewer_key_prev  ),
+  .h_cnt          ( h_cnt            ),
+  .v_cnt          ( v_cnt            ),
+  .ov_active      ( viewer_ov_active ),
+  .ov_rgb         ( viewer_ov_rgb    )
+);
+
 always_ff @(posedge clk_vid) begin
   video_hs_reg  <= 0;
   video_de_reg  <= 0;
@@ -1490,7 +1526,7 @@ always_ff @(posedge clk_vid) begin
   if (de) begin
     video_de_reg  <= 1;
 
-    video_rgb_reg <= video_rgb_gb;
+    video_rgb_reg <= (viewer_en && viewer_ov_active) ? viewer_ov_rgb : video_rgb_gb;
   end else if (de_prev && ~de) begin
     video_rgb_reg <= 24'h0;
   end

@@ -754,6 +754,8 @@ set_global_assignment -name SYSTEMVERILOG_FILE gb/psram.sv
 set_global_assignment -name SYSTEMVERILOG_FILE gb/data_loader.sv
 set_global_assignment -name SYSTEMVERILOG_FILE gb/sound_i2s.sv
 set_global_assignment -name SYSTEMVERILOG_FILE gb/sync_fifo.sv
+set_global_assignment -name VERILOG_FILE ../pocketroll/viewer/rtl/gbcam_photo_decode.v
+set_global_assignment -name SYSTEMVERILOG_FILE ../pocketroll/viewer/rtl/viewer_overlay.sv
 set_global_assignment -name QIP_FILE gb/audio/mf_audio_pll.qip
 set_global_assignment -name VHDL_FILE gb/T80/T80_Reg.vhd
 set_global_assignment -name VHDL_FILE gb/T80/T80_Pack.vhd

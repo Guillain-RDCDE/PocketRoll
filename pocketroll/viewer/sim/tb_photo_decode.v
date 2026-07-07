@@ -10,7 +10,8 @@ module tb_photo_decode;
   reg        wrf [0:14335];      // written flag
 
   wire [AW-1:0] maddr;
-  wire [7:0]    mdata = mem[maddr];   // async read (validates decode math)
+  reg  [7:0]    mdata;
+  always @(posedge clk) mdata <= mem[maddr];   // registered 1-cycle read (real BRAM/SDRAM)
   reg           start = 0, rst = 1;
   wire          fb_we, done, busy;
   wire [13:0]   fb_addr;

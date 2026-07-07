@@ -20,8 +20,8 @@ module gbcam_sta_locate #(
   output reg         done,
   output reg         busy
 );
-  localparam S_IDLE=0, S_RD=1, S_CMP=2, S_ADV=3;
-  reg [1:0]  st;
+  localparam S_IDLE=0, S_RD=1, S_RDW=2, S_CMP=3, S_ADV=4;
+  reg [2:0]  st;
   reg [AW-1:0] i;
   reg [2:0]  k;      // 0..4
   reg        phase;  // 0 = first Magic (@i), 1 = second (@i+0xFE)
@@ -46,7 +46,8 @@ module gbcam_sta_locate #(
       S_IDLE: if (start) begin
         i <= 20'h010D2; k <= 0; phase <= 1'b0; found <= 1'b0; busy <= 1'b1; st <= S_RD;
       end
-      S_RD:  begin mem_addr <= scan_addr; st <= S_CMP; end
+      S_RD:  begin mem_addr <= scan_addr; st <= S_RDW; end  // present addr
+      S_RDW: st <= S_CMP;                                    // wait 1 cycle (registered read)
       S_CMP: begin
         if (mem_data == magicbyte(k)) begin
           if (k == 3'd4) begin
