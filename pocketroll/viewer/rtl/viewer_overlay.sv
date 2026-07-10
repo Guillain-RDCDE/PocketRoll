@@ -34,23 +34,21 @@ module viewer_overlay #(
 );
   // ── current slot + navigation ─────────────────────────────────────────────────
   reg  [4:0] cur_slot;
-  reg        redecode;
   always @(posedge clk_sys) begin
-    redecode <= 1'b0;
     if (rst) cur_slot <= 5'd0;
-    else begin
-      if (refresh)       begin redecode <= 1'b1; end
-      else if (key_next) begin cur_slot <= (cur_slot==5'd29)? 5'd0 : cur_slot+1'b1; redecode <= 1'b1; end
-      else if (key_prev) begin cur_slot <= (cur_slot==5'd0)? 5'd29 : cur_slot-1'b1; redecode <= 1'b1; end
-    end
+    else if (key_next) cur_slot <= (cur_slot==5'd29)? 5'd0 : cur_slot+1'b1;
+    else if (key_prev) cur_slot <= (cur_slot==5'd0)? 5'd29 : cur_slot-1'b1;
   end
 
   // ── decoder → framebuffer (reads cram) ────────────────────────────────────────
+  // Free-running: whenever the decoder is idle, decode the current slot again, so the
+  // framebuffer always reflects cram (no dependence on a one-shot refresh edge, and it
+  // auto-updates as the camera mirrors more photos into cram). `refresh` is unused.
   wire [16:0] dec_addr;
   assign cram_addr = dec_addr;
   wire dec_we; wire [13:0] dec_waddr; wire [1:0] dec_wdata; wire dec_busy, dec_done;
   gbcam_photo_decode #(.AW(17)) u_dec(
-    .clk(clk_sys),.rst(rst),.start(redecode & ~dec_busy),.base(17'd0),.slot(cur_slot),
+    .clk(clk_sys),.rst(rst),.start(~dec_busy),.base(17'd0),.slot(cur_slot),
     .mem_addr(dec_addr),.mem_data(cram_data),
     .fb_we(dec_we),.fb_addr(dec_waddr),.fb_data(dec_wdata),.busy(dec_busy),.done(dec_done));
 
