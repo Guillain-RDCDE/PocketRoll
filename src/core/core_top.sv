@@ -1518,8 +1518,9 @@ viewer_overlay u_viewer (
   .key_prev ( viewer_key_prev  ),
   .cram_addr( viewer_cram_addr ),
   .cram_data( viewer_cram_data ),
-  .h_cnt    ( h_cnt            ),
-  .v_cnt    ( v_cnt            ),
+  .de       ( de               ),
+  .vbl      ( v_blank          ),
+  .ce_pix   ( ce_pix           ),
   .ov_active( viewer_ov_active ),
   .ov_rgb   ( viewer_ov_rgb    )
 );

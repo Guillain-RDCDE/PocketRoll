@@ -23,9 +23,12 @@ module viewer_overlay #(
   // registered byte read into the GB core's cart RAM (cram), 1-cycle latency
   output wire [16:0] cram_addr,
   input  wire [7:0]  cram_data,
-  // pixel position from budude2's video module (clk_vid == clk_ram here)
-  input  wire [8:0]  h_cnt,
-  input  wire [8:0]  v_cnt,
+  // video timing from budude2 (clk_vid == clk_ram domain): active flag + pixel clock-enable.
+  // We derive local active-pixel coordinates so the placement is independent of the raster's
+  // border/blanking offsets (lcd.v counts a full 425×264 raster, not 160×144).
+  input  wire        de,          // ~(h_blank | v_blank)
+  input  wire        vbl,         // v_blank (frame reset for the y counter)
+  input  wire        ce_pix,      // one pulse per output pixel
   output wire        ov_active,
   output reg  [23:0] ov_rgb
 );
@@ -55,10 +58,20 @@ module viewer_overlay #(
   reg [1:0] fbmem [0:14335];
   always @(posedge clk_sys) if (dec_we) fbmem[dec_waddr] <= dec_wdata;
 
-  wire in_win = (h_cnt>=IMG_X) && (h_cnt<IMG_X+128) && (v_cnt>=IMG_Y) && (v_cnt<IMG_Y+112);
-  wire [13:0] praddr = ((v_cnt-IMG_Y) <<7) + (h_cnt-IMG_X);
+  // local active-pixel coordinates (0,0 = first visible pixel), offset-independent
+  reg [8:0] ax, ay; reg de_d;
+  always @(posedge clk_vid) if (ce_pix) begin
+    de_d <= de;
+    if (~de)      ax <= 9'd0;                 // reset in horizontal blank
+    else          ax <= (~de_d) ? 9'd0 : ax + 1'b1;  // 0 at line start, then count
+    if (vbl)               ay <= 9'd0;        // reset each frame
+    else if (de_d & ~de)   ay <= ay + 1'b1;   // an active line just ended
+  end
+  // v1: place the 128×112 image at the TOP-LEFT of the active area (no centring guess yet)
+  wire in_win = de && (ax < 9'd128) && (ay < 9'd112);
+  wire [13:0] praddr = {ay[6:0], ax[6:0]};   // ay*128 + ax
   reg [1:0] fb_rd; reg in_win_d;
-  always @(posedge clk_vid) begin fb_rd <= fbmem[praddr]; in_win_d <= in_win; end
+  always @(posedge clk_vid) if (ce_pix) begin fb_rd <= fbmem[praddr]; in_win_d <= in_win; end
   assign ov_active = in_win_d;
   always @(*) case (fb_rd) 2'd0:ov_rgb=PAL0; 2'd1:ov_rgb=PAL1; 2'd2:ov_rgb=PAL2; default:ov_rgb=PAL3; endcase
 endmodule
