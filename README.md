@@ -19,6 +19,10 @@
 
 ---
 
+> **This is a fork.** The openFPGA Game Boy Color core it runs on is by [budude2](https://github.com/budude2/openfpga-GBC), ported from the MiSTer Gameboy core.
+>
+> **What is mine here (40 commits):** the on-board photo viewer — the decode core with its simulation tests, the `video_gen` raster and palette path, the framebuffer, and the M10K fix that decodes straight from cartridge RAM instead of a 128 KB buffer; the Quartus build graft; plus `STORY.md`, the making-of, and its GitHub Pages site.
+
 The Game Boy Camera, in 1998, could hold thirty photos — thirty, *total*, forever, until you deleted
 some to make room. PocketRoll lifts that limit on the Analogue Pocket, using nothing but the console,
 the original cartridge, and an SD card.
