@@ -13,3 +13,8 @@ node_modules/
 # PocketRoll: baked save (contains personal photos) - never commit
 cram_l.mif
 cram_h.mif
+
+# Sorties de synthese Quartus (~2 Mo chacune, regenerees a chaque build).
+# Les cores livres passent par les Releases, pas par l'historique.
+*.rbf_r
+pkg/gb/Cores/*/info.txt

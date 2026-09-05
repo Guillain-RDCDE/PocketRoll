@@ -1,0 +1,24 @@
+# Quartus reecrit ses fichiers projet en CRLF a chaque compilation sous Windows.
+# Sans cette normalisation, `git diff` affiche ap_core.qsf entier (1640 lignes)
+# apres chaque build alors que rien n'a change. On stocke tout en LF.
+*.qsf   text eol=lf
+*.qpf   text eol=lf
+*.qip   text eol=lf
+*.sdc   text eol=lf
+*.mif   text eol=lf
+*.tcl   text eol=lf
+*.v     text eol=lf
+*.sv    text eol=lf
+*.vh    text eol=lf
+*.svh   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+
+# Sorties de synthese et donnees binaires : jamais converties ni diffees.
+*.rbf    binary
+*.rbf_r  binary
+*.bin    binary
+*.pow    binary
+*.qar    binary
+*.jic    binary
+*.sof    binary
