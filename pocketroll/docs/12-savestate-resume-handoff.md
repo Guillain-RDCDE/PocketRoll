@@ -183,7 +183,7 @@ restore + `~sleep_savestate` gate) → `a4554da` runtime toggle → `632c9eb` do
 ## 10. Constraints / operating rules
 
 - No JTAG, never open/buy the Pocket. Debug via Pocket Debug Logging (`/System/Logs/`) + reading the SD.
-- Commit identity **Guillain-RDCDE**, zero Claude attribution, push direct to master/main, selective
+- Commit identity **Guillain-RDCDE**, no co-author trailers of any kind, push direct to master/main, selective
   `git add`. Never commit personal photo files (`*.sav`/`*.sta`) or ROM `.gb` files. Respond in French.
 - **First move next session: get Guillain to confirm §3** (did resume ever work cleanly?), then dig into
   the gb core's PPU savestate (§4/§5).

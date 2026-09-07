@@ -201,7 +201,7 @@ MugDump: 99942fe `.sta` support.
 **Constraints / operating rules.**
 - **No JTAG, never open/buy the Pocket.** Debug via Pocket Debug Logging (`/System/Logs/`), bridge
   probes, marker files. (A reflashable *cartridge* is separate hardware; Guillain prefers software-only.)
-- Commit identity **Guillain-RDCDE**, **zero Claude attribution**, push direct to master, selective
+- Commit identity **Guillain-RDCDE** and **no co-author trailers of any kind**, push direct to master, selective
   `git add`. **Never commit personal photo files** (`*.sav`/`*.sta` with real photos — gitignored).
 - Respond in **French**.
 - Docs 06 (build war story) · 07 (dump saga) · 08 (infinite roll) · 09 (fluid savestate dump) · 10 (this)
