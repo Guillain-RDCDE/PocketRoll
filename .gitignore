@@ -18,3 +18,9 @@ cram_h.mif
 # Les cores livres passent par les Releases, pas par l'historique.
 *.rbf_r
 pkg/gb/Cores/*/info.txt
+
+# Shared tool settings are versioned; per-machine ones (settings.local.json) are not
+!.claude/
+.claude/*
+!.claude/settings.json
+!.claude/CLAUDE.md
