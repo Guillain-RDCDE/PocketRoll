@@ -19,6 +19,14 @@
 
 ---
 
+<!-- opening -->
+> The 1998 Game Boy Camera could hold thirty photos. On modern hardware, this makes the roll endless, no computer needed.
+>
+> An on-board photo viewer added to an FPGA Game Boy core: the save format decoded, a raster and palette path written in Verilog, pictures decoded straight from cartridge RAM.
+>
+> A hardware limit removed by reading a format nobody had read. Part of the work of [Guillain d’Erceville](https://github.com/Guillain-RDCDE), forward deployed engineer.
+<!-- opening -->
+
 > **This is a fork.** The openFPGA Game Boy Color core it runs on is by [budude2](https://github.com/budude2/openfpga-GBC), ported from the MiSTer Gameboy core.
 >
 > **What is mine here (40 commits):** the on-board photo viewer — the decode core with its simulation tests, the `video_gen` raster and palette path, the framebuffer, and the M10K fix that decodes straight from cartridge RAM instead of a 128 KB buffer; the Quartus build graft; plus `STORY.md`, the making-of, and its GitHub Pages site.
