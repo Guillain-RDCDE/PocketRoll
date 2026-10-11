@@ -104,6 +104,17 @@ The infinite roll is complete and confirmed on hardware: shoot past thirty, the 
 save-state to dump the photos — it resumes cleanly — and keep shooting. Next: a purpose-built
 *camera-only* homebrew ROM running on the same core.
 
+## License
+
+PocketRoll is released under the [GNU General Public License, version 3](LICENSE), the licence of
+the Game Boy core it is built on (its GPL source files carry `GPL-3.0-or-later` headers).
+Some upstream files keep their own licences: the T80 CPU (BSD-style), several modules under the MIT
+License, the Analogue Pocket Framework under Analogue's licence, and Quartus-generated IP under
+Intel/Altera terms. [`NOTICE`](NOTICE) lists every one of them, file by file, with its authors.
+
+Any release zip of the core must include `LICENSE` and `NOTICE` alongside the `Cores/`, `Platforms/`
+and `Assets/` folders.
+
 ---
 
 <sub>A fork of [budude2/openfpga-GBC](https://github.com/budude2/openfpga-GBC). All of budude2's original

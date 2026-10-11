@@ -1,0 +1,125 @@
+PocketRoll
+Copyright (c) 2026 Guillain d'Erceville
+
+PocketRoll is a fork of an openFPGA Game Boy / Game Boy Color core for the
+Analogue Pocket. It is distributed under the GNU General Public License,
+version 3 (see LICENSE). The GPL-licensed upstream files carry
+"GPL-3.0-or-later" headers, and those headers stay as they are.
+
+This file lists the work PocketRoll builds on and every licence other than
+the GPL found in the source headers. Each file's own header is authoritative;
+keep it intact when you copy or modify the file. Any distribution of this
+core, including a release zip, must ship LICENSE and this NOTICE.
+
+-------------------------------------------------------------------------------
+1. Upstream projects
+-------------------------------------------------------------------------------
+
+openFPGA-GBC, by budude2
+  https://github.com/budude2/openfpga-GBC
+  The Analogue Pocket port this repository is forked from: everything under
+  src/ and pkg/ comes from it, apart from the PocketRoll changes listed in
+  README.md. The upstream README is kept as README.budude2.md. The upstream
+  repository has no LICENSE file; its files carry the licences listed below.
+
+Gameboy_MiSTer, by the MiSTer-devel contributors
+  https://github.com/MiSTer-devel/Gameboy_MiSTer
+  The MiSTer Game Boy core that openFPGA-GBC is ported from (src/gb/).
+  It descends from the MiST Game Boy core by Till Harbaum. Files in src/gb/
+  that carry no header of their own (mappers, savestates, sound, HDMA, ...)
+  come from this project and are distributed here under the GPL.
+
+-------------------------------------------------------------------------------
+2. GNU GPL, version 3 or (at your option) any later version
+-------------------------------------------------------------------------------
+
+Copyright (c) 2015 Till Harbaum <till@harbaum.org>
+  src/gb/gb.v, src/gb/sprites.v, src/gb/timer.v, src/gb/video.v,
+  src/gb/lcd.v (header "(c) 2015 Till Harbaum", no licence text)
+
+Copyright (c) 2015 Till Harbaum, (c) 2017 Sorgelig
+  src/gb/sdram.sv
+
+Copyright (c) 2019 Sorgelig
+  src/gb/ddram.sv
+
+(c) 2023 OpenGateware authors and contributors (SPDX: GPL-3.0-or-later)
+  src/gb/audio/filters/audio_filters.sv, src/gb/audio/filters/audio_mix.sv,
+  src/gb/audio/filters/dc_blocker.sv, src/gb/audio/filters/iir_filter.sv,
+  src/gb/audio/filters/iir_filter_tap.sv
+
+-------------------------------------------------------------------------------
+3. MIT License
+-------------------------------------------------------------------------------
+
+Copyright (c) 2022 Adam Gastineau
+  src/gb/data_loader.sv, src/gb/data_unloader.sv, src/gb/psram.sv,
+  src/gb/sound_i2s.sv, src/gb/sync_fifo.sv
+
+(c) 2023 OpenGateware authors and contributors, Marcus Andrade (SPDX: MIT)
+  src/gb/audio/audio_mixer.sv, src/gb/audio/filters/filter_loader.sv,
+  src/gb/audio/filters/filters_rom.sv
+
+The full MIT licence text is in each of these files' headers.
+
+-------------------------------------------------------------------------------
+4. T80 CPU core: BSD-style licence
+-------------------------------------------------------------------------------
+
+Copyright (c) 2001-2002 Daniel Wallner (jesus@opencores.org)
+All rights reserved.
+  src/gb/T80/T80.vhd, T80_ALU.vhd, T80_MCode.vhd, T80_Pack.vhd, T80_Reg.vhd,
+  GBse.vhd (T80_Reg.vhd: Copyright (c) 2002)
+  Later changes by MikeJ (fpgaarcade.com), TobiFlex and others, as recorded
+  in the file headers.
+
+Redistribution and use in source and synthesized forms, with or without
+modification, are permitted provided that the copyright notice, the list of
+conditions and the disclaimer in those headers are retained (source) or
+reproduced in the documentation (synthesized form), and that the author's
+name is not used to endorse derived products without permission. The full
+terms and the warranty disclaimer are in each T80 file's header.
+
+-------------------------------------------------------------------------------
+5. Analogue Pocket Framework (APF): Analogue licence
+-------------------------------------------------------------------------------
+
+Analogue Enterprises Limited
+  src/apf/apf_top.v, src/apf/common.v, src/apf/io_bridge_peripheral.v,
+  src/apf/io_pad_controller.v
+  Licensed under the APF Software License Agreement in each file's header
+  and the Analogue End User License Agreement
+  (https://www.analogue.link/pocket-eula). The header states that where use
+  of the APF requires the MIT License or the GNU General Public License and
+  the terms are inconsistent, the MIT or GPL terms prevail.
+
+"2022 Analogue" (no licence text in the header)
+  src/core/core_bridge_cmd.v, and the Analogue core template that
+  src/core/core_top.sv is built on.
+
+-------------------------------------------------------------------------------
+6. Intel / Altera generated IP and project files
+-------------------------------------------------------------------------------
+
+Copyright (C) Intel Corporation / Altera Corporation. All rights reserved.
+Generated by Quartus Prime and subject to the Intel (Altera) Program License
+Subscription Agreement, the Quartus Prime License Agreement and the related
+agreements named in each header:
+  src/ap_core.qpf, src/ap_core.qsf, src/ap_core_assignment_defaults.qdf,
+  src/apf/build_id_gen.tcl, src/apf/mf_datatable.v, src/apf/mf_ddio_bidir_12.*,
+  src/core/mf_pllbase*, src/core/mf_pllbase/, src/core/mf_pllbase_sim/,
+  src/core/pin_ddio_clk.*, src/gb/audio/mf_audio_pll*,
+  src/gb/audio/mf_audio_pll/, src/gb/audio/mf_audio_pll_sim/,
+  src/gb/rtc_ram/
+
+-------------------------------------------------------------------------------
+7. PocketRoll's own work
+-------------------------------------------------------------------------------
+
+Copyright (c) 2026 Guillain d'Erceville, GNU GPL version 3 (see LICENSE)
+  pocketroll/, STORY.md, docs/, the PocketRoll changes to src/ and pkg/
+
+The camera save-format research builds on published work by Raphael Boichot
+(Inject-pictures-in-your-Game-Boy-Camera-saves), insideGadgets and the Pan
+Docs; .sta extraction follows Galkon/pokepocket-save-recovery. No code from
+those projects is included here.
