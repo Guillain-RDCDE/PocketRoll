@@ -10,16 +10,20 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
+# A deploy is never cancelled half-way: the next one queues behind it.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
