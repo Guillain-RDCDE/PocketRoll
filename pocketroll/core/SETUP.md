@@ -65,6 +65,9 @@ openFPGA cores are distributed as a `Cores/<Author>.<Core>/` folder on the SD `/
 - Update `pkg/.../core.json` author/name so it doesn't collide with budude2's.
 - Add the album/photo data slot to `pkg/.../data.json` (id `0x30`, see INTEGRATION.md).
 - Copy the packaged folder to the SD `/Cores/`, eject, boot the Pocket, load the core.
+- A release zip for other people must also carry `LICENSE` and `NOTICE` (repository root) at the
+  root of the zip, next to `Cores/`, `Platforms/` and `Assets/`: the GPL requires the licence text
+  to travel with the bitstream.
 
 (Reuse a working core's SD layout as a template the first time — match its folder structure exactly.)
 
