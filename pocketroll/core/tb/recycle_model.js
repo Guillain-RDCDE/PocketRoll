@@ -83,3 +83,7 @@ for (const bits of [5,6]) {
     console.log(`idx=${bits}-bit : ${r.pass?'✅ PASS':'❌ FAIL'}  dir=${r.dir0} ${r.dir1}  checksum=${r.cksum}  (${r.cycles} cycles)`);
 }
 console.log('\nGround truth (camera deletion of slot 1): dir=00 FF, checksum=12EA');
+
+// The 5-bit run is expected to loop (it documents the bug); the 6-bit one, which
+// matches pocketroll_recycle.v, must terminate and pass.
+process.exit(run(6).pass ? 0 : 1);

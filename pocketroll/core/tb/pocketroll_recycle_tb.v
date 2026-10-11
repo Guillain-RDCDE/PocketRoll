@@ -10,12 +10,14 @@
 //   Expect = directory 00 FF FF…FF · checksum 12 EA · echo mirrored
 //            (identical to what the camera itself produced when it deleted slot 1)
 //
-// Run it (tiny install, no Quartus needed):
-//   iverilog -o rc_tb core/pocketroll_recycle.v core/tb/pocketroll_recycle_tb.v
+// Run it (tiny install, no Quartus needed), from pocketroll/:
+//   iverilog -g2012 -o rc_tb core/pocketroll_recycle.v core/tb/pocketroll_recycle_tb.v
 //   vvp rc_tb
+// A mismatch or a timeout ends the run with $fatal, so vvp exits non-zero.
+// CI runs it through pocketroll/core/tb/run.sh.
 //
-// ⚠️ Authored but NOT executed here (no simulator on the dev box). The RAM model
-// is combinational-read / registered-write, matching the FSM's assumption.
+// The RAM model is combinational-read / registered-write, matching the FSM's
+// assumption.
 // =============================================================================
 
 `timescale 1ns/1ps
@@ -30,13 +32,15 @@ module pocketroll_recycle_tb;
 
     wire [16:0] ram_addr;
     wire        ram_rd;
-    reg  [7:0]  ram_rd_data;
+    wire [7:0]  ram_rd_data;
     wire        ram_wr;
     wire [7:0]  ram_wr_data;
 
     // --- 128 KB byte RAM: combinational read, registered write ---------------
+    // A continuous assign, not `always @(*)`: Icarus makes an @* block sensitive
+    // to every word of the array and never finishes compiling a 128 KB one.
     reg [7:0] mem [0:131071];
-    always @(*) ram_rd_data = mem[ram_addr];
+    assign ram_rd_data = mem[ram_addr];
     always @(posedge clk) if (ram_wr) mem[ram_addr] <= ram_wr_data;
 
     // --- DUT -----------------------------------------------------------------
@@ -94,12 +98,12 @@ module pocketroll_recycle_tb;
         if (errors == 0)
             $display("  ✅ PASS — recycle output matches the real camera's deletion.");
         else
-            $display("  ❌ %0d mismatch(es).", errors);
+            $fatal(1, "  ❌ %0d mismatch(es).", errors);
 
         $finish;
     end
 
     // safety timeout
-    initial begin #100000 $display("TIMEOUT"); $finish; end
+    initial begin #100000 $fatal(1, "TIMEOUT"); end
 
 endmodule

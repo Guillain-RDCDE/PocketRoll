@@ -43,9 +43,9 @@ module tb_sta_locate;
     run_case(20'd131072, 20'h00000);
     $display("sta_locate: %0d/2 cases passed", pass);
     if (pass == 2) $display("*** STA_LOCATE PASS ***");
-    else           $display("*** STA_LOCATE FAIL ***");
+    else           $fatal(1, "*** STA_LOCATE FAIL ***");
     $finish;
   end
-  initial begin #40000000; $display("TIMEOUT"); $finish; end
+  initial begin #40000000; $fatal(1, "TIMEOUT"); end
 endmodule
 `default_nettype wire

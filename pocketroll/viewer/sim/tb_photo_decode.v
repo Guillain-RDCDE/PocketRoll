@@ -43,9 +43,9 @@ module tb_photo_decode;
     end
     $display("photo_decode: %0d/14336 pixels written, %0d mismatches", nwr, bad);
     if (bad == 0 && nwr == 14336) $display("*** PHOTO_DECODE PASS ***");
-    else                          $display("*** PHOTO_DECODE FAIL ***");
+    else                          $fatal(1, "*** PHOTO_DECODE FAIL ***");
     $finish;
   end
-  initial begin #5000000; $display("TIMEOUT"); $finish; end
+  initial begin #5000000; $fatal(1, "TIMEOUT"); end
 endmodule
 `default_nettype wire

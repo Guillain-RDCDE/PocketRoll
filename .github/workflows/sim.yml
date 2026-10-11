@@ -1,0 +1,42 @@
+name: Simulation tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sim:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Install Icarus Verilog
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends iverilog=12.0-2build2
+          iverilog -V 2>&1 | sed -n 1p
+
+      - name: Tools self-test (gbcam-sav.js)
+        run: node pocketroll/tools/selftest.js
+
+      - name: Core testbench (pocketroll_recycle)
+        run: bash pocketroll/core/tb/run.sh
+
+      - name: Viewer testbenches
+        run: bash pocketroll/viewer/sim/run.sh

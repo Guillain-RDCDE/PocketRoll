@@ -63,9 +63,9 @@ module tb_video_gen;
     $display("video_gen: %0d pixels checked, %0d mismatches, active(de) counted=%0d (expect %0d = 2 frames)",
              checks, bad, de_count, 2*HACT*VACT);
     if (bad==0 && de_count==2*HACT*VACT && checks>0) $display("*** VIDEO_GEN PASS ***");
-    else $display("*** VIDEO_GEN FAIL ***");
+    else $fatal(1, "*** VIDEO_GEN FAIL ***");
     $finish;
   end
-  initial begin #200000; $display("TIMEOUT"); $finish; end
+  initial begin #200000; $fatal(1, "TIMEOUT"); end
 endmodule
 `default_nettype wire
